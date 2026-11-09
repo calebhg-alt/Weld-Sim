@@ -646,7 +646,7 @@ function applyPosition(){
   setThickness();
   chalkLines.forEach(l => l.position.z = gz ? G_TOPH + 0.7 : ROOT_Z + 0.95);
   chalkLabels.forEach(l => l.position.z = gz ? G_TOPH + 1.7 : ROOT_Z + 1.95);
-  if (isPipe()) placeChalkPipe();
+  if (isPipe()) placeChalkPipe(); else placeChalkPlate();
   applyRoll();
   const onTable = state.pos === '2F' || state.pos === '1G' || state.pos === 'P1G';
   clampBlk.visible = post.visible = !onTable;
@@ -683,7 +683,7 @@ function setThickness(){
   grooveG.add(plateL, plateR);
   arrow.visible = !pp;
   tacks.forEach(t => t.position.set(t.position.x, T + 0.04, -T/2 - 0.04));
-  chalkLines.forEach(l => l.position.y = T + 0.002); chalkLabels.forEach(l => l.position.y = T + 0.003);
+  if (isPipe()) placeChalkPipe(); else placeChalkPlate();
   setGrid();
 }
 
@@ -705,6 +705,38 @@ const chalkLines = [], chalkLabels = [];
   const lb = labelPlane(i ? 'STOP' : 'START'); lb.position.set(x, T+0.003, ROOT_Z + 1.95); coupon.add(lb); chalkLabels.push(lb);
 });
 const arrow = labelPlane('→', 0.8, 0.4); arrow.position.set(0, T+0.003, ROOT_Z+1.95); coupon.add(arrow); chalkLabels.push(arrow);
+// Plate: lines at the START/STOP ends, labels just inside them. For fillets the marks go on whichever plate
+// (flange or web) faces the welder's view more, so they aren't seen edge-on in 3F/4F.
+function placeChalkPlate(P){
+  P = P || presetFor(1); const sp = Math.sin(P.phi);
+  const toCam = new THREE.Vector3(sp*Math.sin(P.theta), Math.cos(P.phi), sp*Math.cos(P.theta));
+  const nF = new THREE.Vector3(0,1,0).applyQuaternion(coupon.quaternion), nW = new THREE.Vector3(0,0,1).applyQuaternion(coupon.quaternion);
+  const onWeb = !isGr() && nW.dot(toCam) > nF.dot(toCam) + 0.05;
+  const z = isGr() ? G_TOPH : ROOT_Z;
+  const put = (o, x, off, lift) => {
+    if (onWeb){ o.rotation.set(0, 0, 0); o.position.set(x, ROOT_Y + off, ROOT_Z + lift); }
+    else { o.rotation.set(-Math.PI/2, 0, 0); o.position.set(x, T + lift, z + off); }
+  };
+  put(chalkLines[0], X0, 0.85, 0.002); put(chalkLines[1], X1, 0.85, 0.002);
+  put(chalkLabels[0], X0 + 0.55, 1.75, 0.003); put(chalkLabels[1], X1 - 0.55, 1.75, 0.003); put(chalkLabels[2], 0, 1.75, 0.003);
+}
+// Turn each soapstone label flat on its surface so the words read upright from wherever the camera is
+const _kqL = new THREE.Quaternion(), _kpL = new THREE.Quaternion(), _knL = new THREE.Vector3(), _kuL = new THREE.Vector3(), _krL = new THREE.Vector3(), _kcL = new THREE.Vector3(), _kmL = new THREE.Matrix4();
+function faceLabels(){
+  camera.updateMatrixWorld(); coupon.updateMatrixWorld(true);
+  _kuL.setFromMatrixColumn(camera.matrixWorld, 1);
+  coupon.getWorldQuaternion(_kpL).invert();
+  chalkLabels.forEach(o => {
+    if (!o.visible || o === arrow) return;                 // the arrow keeps pointing in the travel direction
+    o.getWorldQuaternion(_kqL); _knL.set(0, 0, 1).applyQuaternion(_kqL);
+    o.getWorldPosition(_kcL); if (_kcL.sub(camera.position).dot(_knL) > 0) return;    // seen from behind the surface: leave it
+    const up = _krL.copy(_kuL).addScaledVector(_knL, -_kuL.dot(_knL));
+    if (up.lengthSq() < 1e-4) return;
+    up.normalize(); const right = _kcL.crossVectors(up, _knL).normalize();
+    _kmL.makeBasis(right, up, _knL); _kqL.setFromRotationMatrix(_kmL);
+    o.quaternion.copy(_kpL).multiply(_kqL);
+  });
+}
 function placeChalkPipe(){
   const sA = SEGS[0], stopX = SEGS.length > 1 ? sA.b : L - 0.9;
   [[chalkLines[0], 0.03], [chalkLines[1], stopX]].forEach(([o, x]) => { o.rotation.set(-Math.PI/2, 0, 0); o.position.set(x, T + 0.003, G_TOPH + 0.75); bendObj(o); });
@@ -1216,13 +1248,20 @@ function presetFor(k){
   if (k === 'insp'){ theta += 0.12; r *= 0.96; }
   const c = _cv.copy(isGr() ? GCENTER : FCENTER);
   const SMO = {1:[-1.0,1.6], 2:[-1.15,1.75], 3:[-0.5,1.45], 4:[-0.9,1.6]}[posN()];
-  if (isS() && k !== 'insp' && state.phase !== 'setup'){ theta += SMO[0]; r *= SMO[1]; c.addScaledVector(jointN(), 1.4); }
+  if (isS() && k !== 'insp' && state.phase !== 'setup'){
+    theta += state.pos === '3F' ? 0.3 : SMO[0];          // 3F: swinging left would put the web between you and the joint
+    r *= SMO[1]; c.addScaledVector(jointN(), 1.4);
+  }
   coupon.updateMatrixWorld(true); coupon.localToWorld(c);
+  if (c.y + r*Math.cos(phi) < 0.8){                       // looking up: keep the camera above the floor
+    r = Math.max(r*0.75, Math.min(r, (c.y - 0.8)/-Math.cos(phi)));
+    phi = Math.min(phi, Math.acos(clamp(-(c.y - 0.8)/r, -1, 1)));
+  }
   return {theta, phi, r, tx:c.x, ty:c.y, tz:c.z};
 }
 const cam = presetFor(1), camGoal = presetFor(1);
 let camFollow = false;
-function setPreset(k){ Object.assign(camGoal, presetFor(k)); camFollow = isPipe() && (k == 1) && state.phase !== 'setup' && state.phase !== 'inspect'; }
+function setPreset(k){ Object.assign(camGoal, presetFor(k)); if (k == 1 && !isPipe()) placeChalkPlate(camGoal); camFollow = isPipe() && (k == 1) && state.phase !== 'setup' && state.phase !== 'inspect'; }
 // Pipe: the camera rides around the joint with the arc, from the welder's side.
 const _fa = new THREE.Vector3(), _fn = new THREE.Vector3(), _fx = new THREE.Vector3(), _fd = new THREE.Vector3();
 function followGoal(){
@@ -2603,6 +2642,7 @@ function frame(now){
   if (state.phase === 'weld') updateWeld(dt);
   else if (state.phase === 'paused') placeTorch();
   updateEffects(dt);
+  faceLabels();
   renderer.render(scene, camera);
 }
 applyPosition();
@@ -2613,7 +2653,7 @@ placeTorch();
 requestAnimationFrame(frame);
 
 // test hook
-window.__weld = {PIPE, passArea, depRate, get SEGS(){return SEGS}, seg, applyRoll, get passes(){return passes}, SURF, measure, mapB, spMid, targets, aimY, aimZ, nextPass, applyPosition, setPreset, keys, chipAt, goInspect, slag, state, get bins(){return bins}, D, mouse, finishWeld, startWeld, evaluate, mapMouse, toScreen, updateWeld, updateEffects, updateCamera, X0, X1, ROOT_Y, ROOT_Z};
+window.__weld = {camera, PIPE, chalkLabels, BASES, presetFor, passArea, depRate, get SEGS(){return SEGS}, seg, applyRoll, get passes(){return passes}, SURF, measure, mapB, spMid, targets, aimY, aimZ, nextPass, applyPosition, setPreset, keys, chipAt, goInspect, slag, state, get bins(){return bins}, D, mouse, finishWeld, startWeld, evaluate, mapMouse, toScreen, updateWeld, updateEffects, updateCamera, X0, X1, ROOT_Y, ROOT_Z};
 })();
 </script>
 </body>
