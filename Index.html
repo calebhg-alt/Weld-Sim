@@ -1,0 +1,2620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>T-Joint Weld Sim — 2F GMAW</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0f12; --panel:rgba(15,17,21,.86); --line:#2a3039; --ink:#e7eaee; --dim:#9aa3ae;
+  --orange:#ff8a1e; --green:#3ddc84; --yellow:#ffc93c; --red:#ff5252; --blue:#7cc4ff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Barlow,system-ui,sans-serif;overflow:hidden}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}
+.hidden{display:none!important}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+h1,h2,h3,.cond{font-family:'Barlow Condensed',Barlow,sans-serif;letter-spacing:.02em}
+button{font:600 15px 'Barlow Condensed',sans-serif;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line);background:#1b2028;color:var(--ink);padding:9px 16px;border-radius:6px;cursor:pointer}
+button:hover{border-color:#4a5462;background:#222833}
+button.primary{background:var(--orange);border-color:var(--orange);color:#1a1006}
+button.primary:hover{background:#ff9c40}
+button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* lens / helmet */
+#lens{position:fixed;inset:0;pointer-events:none;background:#7fae6f;mix-blend-mode:multiply;opacity:0;transition:opacity .06s}
+#flash{position:fixed;inset:0;pointer-events:none;background:#eaf6ff;opacity:0}
+#frame{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
+  background:radial-gradient(ellipse 62% 54% at 50% 52%, transparent 70%, rgba(0,0,0,.55) 88%, rgba(0,0,0,.92) 100%)}
+
+/* HUD */
+#hud{position:fixed;inset:0;pointer-events:none}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;backdrop-filter:blur(6px)}
+#gaugePanel{position:absolute;left:14px;top:14px;width:272px;padding:12px 14px}
+.ptitle{font:700 18px 'Barlow Condensed';letter-spacing:.06em;color:var(--orange)}
+.psub{font-size:12.5px;color:var(--dim);margin:2px 0 10px}
+.g{margin:9px 0 2px}
+.g .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px}
+.g .row b{font:700 15px 'JetBrains Mono'}
+.g .bar{position:relative;height:9px;border-radius:5px;margin-top:4px;opacity:.9}
+.g .nd{position:absolute;top:-4px;width:3px;height:17px;background:#fff;border-radius:2px;box-shadow:0 0 0 1px #000;transform:translateX(-1px)}
+.g .tgt{font-size:11px;color:var(--dim);margin-top:3px}
+#legNow{margin-top:10px;font-size:12.5px;color:var(--dim);border-top:1px solid var(--line);padding-top:8px}
+#legNow b{color:var(--ink);font-family:'JetBrains Mono'}
+#rodNow{margin-top:8px;font-size:12.5px;color:var(--dim)}
+#rodNow b{color:var(--ink);font-family:'JetBrains Mono'}
+.rbar{height:6px;background:#232a33;border-radius:3px;margin-top:4px;overflow:hidden}
+.rbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#8a7f6a,#cfc3a6)}
+#tigNow{margin-top:8px;font-size:12.5px;color:var(--dim);line-height:1.6}
+#tigNow b{color:var(--ink);font-family:'JetBrains Mono'}
+#tigNow .rbar i{background:linear-gradient(90deg,#4f7cff,#b9c8ff)}
+#procSeg button{font-size:14px}
+.posGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.posGrid button{text-transform:none;font-size:18px;padding:7px 4px;letter-spacing:.03em}
+.posGrid button small{display:block;font:400 11.5px Barlow,sans-serif;color:var(--dim);letter-spacing:0}
+.posGrid button.on{border-color:var(--orange);background:#2a1d10;color:#ffc58c}
+#passNow{margin-top:8px;font-size:12.5px;color:var(--dim);line-height:1.35}
+#aimNow{margin-top:6px;font-size:12.5px;color:var(--dim)} #aimNow b{color:var(--ink);font-family:'JetBrains Mono'}
+#xsec{width:244px;height:115px;display:block;margin-top:6px;background:#0f1216;border:1px solid var(--line);border-radius:6px}
+.chk11{display:grid;grid-template-columns:1.25fr 1.6fr 1.25fr auto;gap:6px 8px;font-size:12.5px;align-items:center}
+.chk11 .h{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.badge{font:700 11.5px 'Barlow Condensed';letter-spacing:.05em;padding:2px 8px;border-radius:10px;border:1px solid;text-align:center}
+.badge.ok{color:var(--green);border-color:var(--green)} .badge.no{color:var(--red);border-color:var(--red)}
+.thkGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:6px}
+.thkGrid button{text-transform:none;font:600 15px 'JetBrains Mono';padding:6px 2px}
+.thkGrid button.on{border-color:var(--orange);background:#2a1d10;color:#ffc58c}
+#passNow b{color:var(--ink);font-family:'JetBrains Mono'}
+#chip{position:fixed;left:50%;top:14px;transform:translateX(-50%);padding:12px 16px;text-align:center;width:380px;z-index:6}
+#chip .bar2{height:8px;background:#232a33;border-radius:4px;overflow:hidden;margin:6px 0}
+#chip .bar2 i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--orange),#ffd08a)}
+#testNote{font-size:13px;color:var(--yellow);margin-top:6px;line-height:1.35}
+
+#topbar{position:absolute;left:50%;top:14px;transform:translateX(-50%);width:min(520px,calc(100% - 640px));min-width:300px;padding:10px 14px;text-align:center}
+#progWrap{height:8px;background:#232a33;border-radius:4px;overflow:hidden}
+#prog{height:100%;width:0;background:linear-gradient(90deg,var(--orange),#ffd08a)}
+#status{font:600 16px 'Barlow Condensed';letter-spacing:.04em;margin-top:7px}
+#pace{font-size:12.5px;color:var(--dim);margin-top:2px;min-height:16px}
+
+#coach{position:absolute;left:50%;bottom:86px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px}
+.toast{font:600 17px 'Barlow Condensed';letter-spacing:.03em;padding:7px 14px;border-radius:7px;background:rgba(15,17,21,.9);border:1px solid var(--line);animation:tin .2s ease-out}
+.toast.warn{border-color:var(--yellow);color:#ffe39a}
+.toast.bad{border-color:var(--red);color:#ffb3b3}
+.toast.good{border-color:var(--green);color:#b9f5d2}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}}
+
+#keys{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);padding:8px 14px;font-size:12.5px;color:var(--dim);white-space:nowrap;display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;align-items:center;max-width:calc(100vw - 28px)}
+kbd{font:600 11.5px 'JetBrains Mono';background:#262c35;border:1px solid #3a4350;border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--ink)}
+#hudBtns{position:absolute;right:14px;top:14px;display:flex;gap:8px;pointer-events:auto}
+
+/* modals */
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,6,8,.62);z-index:10;padding:20px}
+.card{background:#12151a;border:1px solid var(--line);border-radius:14px;max-width:880px;width:100%;max-height:calc(100vh - 40px);overflow:auto;padding:26px 28px}
+.card h1{margin:0;font-size:38px;line-height:1;color:var(--ink)}
+.card h1 span{color:var(--orange)}
+.lead{color:var(--dim);margin:8px 0 18px;font-size:15.5px;line-height:1.45}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+.card h3{margin:0 0 10px;font-size:19px;color:var(--orange);text-transform:uppercase;letter-spacing:.06em}
+.ctl{margin-bottom:14px}
+.ctl label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px}
+.ctl label b{font-family:'JetBrains Mono';font-size:14px}
+.ctl small{display:block;color:var(--dim);font-size:12px;margin-top:3px}
+input[type=range]{width:100%;accent-color:var(--orange)}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;text-transform:none;font-size:15px;letter-spacing:.02em}
+.seg button.on{border-color:var(--orange);background:#2a1d10;color:#ffc58c}
+.chk{display:flex;gap:16px;font-size:14px}
+.chk label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.howto{font-size:14px;line-height:1.5;color:#cfd5dc}
+.howto li{margin-bottom:5px}
+.howto ul{padding-left:18px;margin:0}
+.ctrls{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px;margin-top:12px;align-items:center}
+.reco{font-size:13px;color:var(--dim);background:#181c22;border:1px dashed #333b46;border-radius:8px;padding:9px 11px;margin:6px 0 12px;line-height:1.4}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+
+/* inspection */
+#inspect{position:fixed;right:14px;top:14px;bottom:14px;width:410px;overflow:auto;padding:16px 18px;z-index:5}
+@media (max-width:900px){#inspect{width:auto;left:14px;top:auto;height:58vh}}
+#inspect h2{margin:0;font-size:26px}
+.scoreRow{display:flex;align-items:center;gap:16px;margin:10px 0 6px}
+.bigScore{font:700 56px/1 'JetBrains Mono'}
+.grade{font:700 30px 'Barlow Condensed';padding:4px 12px;border-radius:8px;border:2px solid}
+.verdicts{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+.pill{font:700 13px 'Barlow Condensed';letter-spacing:.06em;padding:4px 10px;border-radius:20px;border:1px solid}
+.pill.ok{color:var(--green);border-color:var(--green);background:rgba(61,220,132,.08)}
+.pill.no{color:var(--red);border-color:var(--red);background:rgba(255,82,82,.08)}
+.sec{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+.sec h3{margin:0 0 8px;font-size:16px;color:var(--orange);text-transform:uppercase;letter-spacing:.07em}
+.brk{display:grid;grid-template-columns:172px 1fr 54px;gap:5px 10px;align-items:center;font-size:13.5px}
+.brk .b{height:8px;background:#232a33;border-radius:4px;overflow:hidden}
+.brk .b i{display:block;height:100%;background:var(--orange)}
+.brk span:last-child{font-family:'JetBrains Mono';font-size:12.5px;text-align:right}
+.defs{font-size:13.5px;line-height:1.5;margin:0;padding-left:18px}
+.tips{font-size:14px;line-height:1.45;margin:0;padding-left:18px}
+.tips li{margin-bottom:6px}
+.tech{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;font-size:13.5px}
+.tech .mono{text-align:right}
+canvas.chart{width:100%;display:block;background:#0f1216;border:1px solid var(--line);border-radius:8px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--dim);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.macroCtl{display:flex;align-items:center;gap:10px;font-size:13px;margin:8px 0 4px}
+.macroCtl input{flex:1}
+.inspBtns{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="3D welding simulation"></canvas>
+<div id="lens"></div>
+<div id="flash"></div>
+<div id="frame"></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div class="panel" id="gaugePanel">
+    <div class="ptitle">2F T-JOINT · GMAW</div>
+    <div class="psub mono" id="hudSet"></div>
+    <div id="gauges"></div>
+    <div id="legNow"><span id="legLbl">Bead leg at torch</span>: <b id="legVal">—</b></div>
+    <div id="passNow">Pass <b id="passVal">1</b> · <span id="passHint">root</span></div>
+    <div id="aimNow">Bead aim <span class="mono" style="font-size:11px;color:var(--dim)">(Z ◂ ▸ C)</span>: <b id="aimVal">center</b></div>
+    <canvas id="xsec" width="488" height="230"></canvas>
+    <div id="tigNow" class="hidden">Pedal: <b id="pedVal">85%</b><div class="rbar"><i id="pedBar"></i></div>Tungsten: <b id="tungVal">clean</b> · Dabs: <b id="dabVal">0</b></div>
+    <div id="rodNow" class="hidden">Electrode left: <b id="rodVal">14.0″</b><div class="rbar"><i id="rodBar"></i></div></div>
+    <div id="testNote" class="hidden">TEST MODE — live gauges are hidden and your hand will drift. Watch the puddle.</div>
+  </div>
+  <div class="panel" id="topbar">
+    <div id="progWrap"><div id="prog"></div></div>
+    <div id="status">Hold the trigger at the START mark</div>
+    <div id="pace"></div>
+  </div>
+  <div id="coach"></div>
+  <div class="panel" id="keys">
+    <span><kbd>LMB</kbd>/<kbd>Space</kbd> trigger</span>
+    <span id="kMouse">mouse → travel &amp; CTWD</span>
+    <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> steer</span>
+    <span><kbd>A</kbd><kbd>D</kbd> work ∠</span>
+    <span><kbd>W</kbd><kbd>S</kbd> push/drag</span>
+    <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> view</span>
+    <span><kbd>H</kbd> helmet</span>
+    <span id="kR" class="hidden"><kbd>R</kbd> new rod</span>
+    <span id="kN"><kbd>N</kbd> next pass</span>
+    <span id="kV" class="hidden"><kbd>V</kbd> walk around</span>
+    <span><kbd>Z</kbd><kbd>C</kbd> bead aim</span>
+    <span id="kT" class="hidden"><kbd>F</kbd> dab filler <kbd>Q</kbd><kbd>E</kbd>/wheel pedal <kbd>G</kbd> regrind</span>
+    <span><kbd>Esc</kbd> pause</span>
+  </div>
+  <div id="hudBtns">
+    <button id="finishBtn">Finish &amp; inspect ⏎</button>
+  </div>
+</div>
+
+<!-- Setup -->
+<div class="modal" id="setup">
+  <div class="card">
+    <h1>T-JOINT <span>WELD SIM</span></h1>
+    <p class="lead">Weld an 8″ coupon or a pipe joint in any of the AWS test positions: a ¼″ fillet on a T-joint (1F–4F) or a multi-pass ⅜″ V-groove on backing (1G–4G), or an open-root pipe joint (1G rolled, 2G, 5G, 6G), with MIG (GMAW), stick (SMAW), or TIG (GTAW). Steer the torch with your mouse and keyboard, then cut and etch your weld to see how you did.</p>
+    <div class="cols">
+      <div>
+        <h3>Joint &amp; position</h3>
+        <div class="posGrid" id="posSeg">
+          <button data-pos="1F">1F<small>flat fillet</small></button>
+          <button data-pos="2F">2F<small>horizontal fillet</small></button>
+          <button data-pos="3F">3F<small>vertical-up fillet</small></button>
+          <button data-pos="4F">4F<small>overhead fillet</small></button>
+          <button data-pos="1G">1G<small>flat groove</small></button>
+          <button data-pos="2G">2G<small>horizontal groove</small></button>
+          <button data-pos="3G">3G<small>vertical-up groove</small></button>
+          <button data-pos="4G">4G<small>overhead groove</small></button>
+          <button data-pos="P1G">1G<small>pipe, rolled</small></button>
+          <button data-pos="P2G">2G<small>pipe, vertical axis</small></button>
+          <button data-pos="P5G">5G<small>pipe, horizontal fixed</small></button>
+          <button data-pos="P6G">6G<small>pipe, 45° fixed</small></button>
+        </div>
+        <div id="pipeWrap" class="hidden"><div style="font-size:14px;margin-top:12px">Pipe size</div>
+        <div class="thkGrid" id="pipeSeg" style="grid-template-columns:repeat(3,1fr)">
+          <button data-p="2s80">2″ Sch 80<br><small style="font:400 11px Barlow;color:var(--dim)">0.218″ wall</small></button>
+          <button data-p="6s40">6″ Sch 40<br><small style="font:400 11px Barlow;color:var(--dim)">0.280″ wall</small></button>
+          <button data-p="6s80">6″ Sch 80<br><small style="font:400 11px Barlow;color:var(--dim)">0.432″ wall</small></button>
+        </div></div>
+        <div id="thkWrap"><div style="font-size:14px;margin-top:12px">Plate thickness</div>
+        <div class="thkGrid" id="thkSeg">
+          <button data-t="0.1875">3/16</button><button data-t="0.25">1/4</button><button data-t="0.375">3/8</button>
+          <button data-t="0.5">1/2</button><button data-t="0.75">3/4</button><button data-t="1">1</button>
+        </div></div>
+        <div id="fsWrap"><div style="font-size:14px;margin-top:10px">Fillet size</div>
+        <div class="thkGrid" id="fsSeg">
+          <button data-f="0.125">1/8</button><button data-f="0.1875">3/16</button><button data-f="0.25">1/4</button>
+          <button data-f="0.3125">5/16</button><button data-f="0.375">3/8</button><button data-f="0.5">1/2</button>
+        </div></div>
+        <div class="reco" id="posInfo" style="margin-top:8px"></div>
+        <h3>Process</h3>
+        <div class="seg" id="procSeg" style="margin-bottom:16px">
+          <button data-p="gmaw">MIG · GMAW<br><small style="font-weight:400;color:var(--dim)">solid wire · shielding gas</small></button>
+          <button data-p="smaw">Stick · SMAW<br><small style="font-weight:400;color:var(--dim)">coated electrode · DCEP</small></button>
+          <button data-p="gtaw">TIG · GTAW<br><small style="font-weight:400;color:var(--dim)">tungsten · filler rod · DCEN</small></button>
+        </div>
+        <h3>Machine setup</h3>
+        <div id="gmawCtl">
+        <div class="reco">.035″ ER70S-6 wire · 75/25 Ar/CO₂ · ⅜″ A36 plate.<br>Starting point: <b id="gmawReco">400 ipm · 22.0 V · 30 CFH</b> <button id="recoBtn" style="padding:3px 8px;font-size:12px;margin-left:6px">Use</button></div>
+        <div class="ctl"><label>Wire feed speed <b id="wfsV"></b></label><input type="range" id="wfs" min="200" max="500" step="5"><small id="ampV"></small></div>
+        <div class="ctl"><label>Voltage <b id="voltsV"></b></label><input type="range" id="volts" min="15" max="26" step="0.1"><small id="voltHint"></small></div>
+        <div class="ctl"><label>Shielding gas flow <b id="gasV"></b></label><input type="range" id="gas" min="0" max="60" step="1"><small>Too little gas or too much (turbulence) both cause porosity.</small></div>
+        </div>
+        <div id="gtawCtl" class="hidden">
+          <div class="reco">3/32″ 2% lanthanated tungsten · 3/32″ ER70S-2 filler · 100% argon · DCEN · ⅜″ plate.<br>Starting point: <b id="tigReco">200 A max (pedal ≈85% → 170 A) · 20 CFH</b> <button id="recoBtnT" style="padding:3px 8px;font-size:12px;margin-left:6px">Use</button></div>
+          <div class="ctl"><label>Max amperage (full pedal) <b id="tigMaxV"></b></label><input type="range" id="tigMax" min="100" max="250" step="5"><small id="tigHint"></small></div>
+          <div class="ctl"><label>Argon flow <b id="argonV"></b></label><input type="range" id="argon" min="0" max="50" step="1"><small id="argonHint">15–25 CFH. Too little lets air in; too much turbulence pulls it in.</small></div>
+        </div>
+        <div id="smawCtl" class="hidden">
+          <div class="reco">⅜″ A36 plate · DCEP (electrode positive).<br>Starting point: <b id="smawReco"></b> <button id="recoBtnS" style="padding:3px 8px;font-size:12px;margin-left:6px">Use</button></div>
+          <div class="ctl"><label>Electrode</label>
+            <div class="seg" id="rodSeg">
+              <button data-r="E7018">E7018 · ⅛″<br><small style="font-weight:400;color:var(--dim)">low-hydrogen · smooth · heavy slag</small></button>
+              <button data-r="E6010">E6010 · ⅛″<br><small style="font-weight:400;color:var(--dim)">deep-digging · fast-freeze · light slag</small></button>
+            </div></div>
+          <div class="ctl"><label>Amperage <b id="ampsV"></b></label><input type="range" id="amps" min="70" max="170" step="1"><small id="ampsHint"></small></div>
+        </div>
+        <h3 style="margin-top:18px">Mode</h3>
+        <div class="seg" id="modeSeg">
+          <button data-m="practice">Practice<br><small style="font-weight:400;color:var(--dim)">gauges · pace guide · coaching</small></button>
+          <button data-m="test">Test<br><small style="font-weight:400;color:var(--dim)">no gauges · hand drift</small></button>
+        </div>
+        <div class="chk" style="margin-top:12px">
+          <label><input type="checkbox" id="helmetChk" checked> Auto-darkening helmet</label>
+          <label><input type="checkbox" id="soundChk" checked> Sound</label>
+        </div>
+      </div>
+      <div class="howto">
+        <h3>How to weld it</h3>
+        <ul id="howG">
+          <li>Pull the trigger (<kbd>LMB</kbd> or <kbd>Space</kbd>) at the <b>START</b> soapstone mark and travel <b class="dirT">left → right</b>.</li>
+          <li>Moving the mouse sideways is your travel speed. Aim for a smooth <b class="spdT">9–13 ipm</b>. That's slow and steady.</li>
+          <li>Keep the cursor <b>on the joint line</b> for a ½″ contact-tip-to-work distance. Raise it for longer stickout, lower it to get closer.</li>
+          <li>Hold a <b>45° work angle</b> (<kbd>A</kbd>/<kbd>D</kbd>) and a <b>5–15° travel angle</b>. <kbd>W</kbd> tilts toward push, <kbd>S</kbd> toward drag. Hold <kbd>Shift</kbd> for fine moves.</li>
+          <li>Run past the <b>STOP</b> mark, release, and press <kbd>Enter</kbd> to inspect.</li>
+        </ul>
+        <ul id="howT" class="hidden">
+          <li>Hold <kbd>LMB</kbd>/<kbd>Space</kbd> to press the <b>foot pedal</b> (arc on). <kbd>Q</kbd>/<kbd>E</kbd> or the mouse wheel set how far down the pedal is (amps).</li>
+          <li>The mouse sets travel (sideways) and arc length (up/down). Hold it tight, about the <b>tungsten diameter (3/32″)</b>, and <b>never</b> touch the tungsten to the puddle.</li>
+          <li>Wait for a <b>wet, shiny puddle</b> (watch the heat gauge), then dab filler with <kbd>F</kbd>: dab, move, dab. That rhythm makes the "stacked dimes." Travel about <b class="spdT">4–6 ipm</b>.</li>
+          <li>Push the torch 5–20° (<kbd>W</kbd>/<kbd>S</kbd>) at a 45° work angle (<kbd>A</kbd>/<kbd>D</kbd>).</li>
+          <li>At the end, <b>ease off the pedal</b> to fill the crater before you let go, or it will crack.</li>
+          <li>Dipped the tungsten? Let off the pedal and press <kbd>G</kbd> to regrind it.</li>
+        </ul>
+        <ul id="howS" class="hidden">
+          <li>Bring the rod tip to the <b>START</b> mark, then click and hold (<kbd>LMB</kbd>/<kbd>Space</kbd>) to strike. Holding keeps the arc lit; letting go breaks it.</li>
+          <li><b>The rod burns off</b> as you weld (about 9–10″ a minute). Keep <b>lowering the cursor</b> to feed it in and hold a tight arc, about <b>⅛″</b> (the core-wire diameter).</li>
+          <li>Too close and the rod <b>sticks</b>. Too long and the arc spatters, causes porosity, and goes out.</li>
+          <li><b>Drag</b> the rod 5–15° (<kbd>S</kbd>/<kbd>W</kbd>; never push) at a <b>45° work angle</b> (<kbd>A</kbd>/<kbd>D</kbd>). Travel about <b class="spdT">6–9 ipm</b>.</li>
+          <li>When the rod burns down to a stub, press <kbd>R</kbd> for a fresh one, move the cursor back up, and restrike just ahead of the crater.</li>
+          <li>Finish with <kbd>Enter</kbd>, then <b>chip the slag</b> before inspection.</li>
+        </ul>
+        <div class="ctrls">
+          <span><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></span><span>steer with the keyboard instead of the mouse: ←/→ travel, ↑/↓ farther/closer (<kbd>Shift</kbd> = fine). Move the mouse to switch back.</span>
+          <span><kbd>Right-drag</kbd></span><span>orbit camera (when not welding)</span>
+          <span><kbd>Wheel</kbd></span><span>zoom</span>
+          <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></span><span>welder view · low front · side</span>
+          <span><kbd>H</kbd></span><span>helmet on/off (keep it on!)</span>
+          <span><kbd>N</kbd></span><span>start the next pass (multi-pass fillets and grooves)</span>
+          <span><kbd>V</kbd></span><span>pipe 2G/5G/6G: walk around to weld the other half</span>
+          <span><kbd>Z</kbd> <kbd>C</kbd></span><span>aim the bead toward one side or the other to split layers. The live cross-section in the HUD shows where it will land.</span>
+        </div>
+        <p id="bestLine" style="color:var(--dim);font-size:13px;margin-top:14px"></p>
+      </div>
+    </div>
+    <div class="actions"><button class="primary" id="startBtn">Strike up ▸</button></div>
+  </div>
+</div>
+
+<!-- Pause -->
+<div class="modal hidden" id="pause">
+  <div class="card" style="max-width:420px;text-align:center">
+    <h1>PAUSED</h1>
+    <p class="lead">Take a breath. Your coupon will wait.</p>
+    <div class="actions" style="justify-content:center">
+      <button id="resumeBtn" class="primary">Resume</button>
+      <button id="restartBtn">New coupon</button>
+      <button id="settingsBtn">Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inspection -->
+<div class="panel hidden" id="inspect">
+  <h2 class="cond">WELD INSPECTION</h2>
+  <div style="color:var(--dim);font-size:12.5px;line-height:1.4" id="inspSub"></div>
+  <div class="scoreRow"><div class="bigScore" id="scoreV">0</div><div class="grade" id="gradeV">F</div><div style="font-size:13px;color:var(--dim)" id="bestV"></div></div>
+  <div class="verdicts" id="verdicts"></div>
+  <div id="capNote" style="font-size:12px;color:var(--dim)"></div>
+  <div class="sec"><h3>AWS D1.1 Table 8.1 visual checklist</h3><div class="chk11" id="d11"></div>
+    <div style="font-size:11.5px;color:var(--dim);margin-top:7px;line-height:1.4" id="critNote">Statically loaded nontubular criteria, measured from the simulated weld profile. Classroom approximation: an inspector with gauges has the final word.</div></div>
+  <div class="sec"><h3>Score breakdown</h3><div class="brk" id="brk"></div></div>
+  <div class="sec"><h3 id="chartTitle">Leg size along the weld</h3>
+    <canvas class="chart" id="legChart" width="740" height="330"></canvas>
+    <div class="legend">
+      <span id="lgLegs"><i style="background:#ff9a3c"></i>flange leg <i style="background:#7cc4ff;margin-left:8px"></i>web leg</span><span id="lgFace" class="hidden"><i style="background:#7cc4ff"></i>weld face vs plate surface</span><span><i style="background:rgba(61,220,132,.35)"></i><span id="lgBand">7/32–5/16″ target</span></span>
+      <span><i style="background:#b388ff"></i>porosity</span><span><i style="background:#ff5252"></i>undercut</span><span><i style="background:#ffc93c"></i>cold lap</span><span><i style="background:#ff7ab6"></i>lack of fusion</span><span><i style="background:#a1887f"></i>slag/tungsten inclusion</span><span><i style="background:#ffffff"></i>crater crack</span><span id="lgRoot"><i style="background:#4dd0e1"></i>incomplete root fusion</span><span><i style="background:#c0c6ce"></i>trapped valley</span><span><i style="background:#ff9100"></i>melt-through</span><span><i style="background:#5b6573"></i>no weld</span>
+    </div>
+  </div>
+  <div class="sec"><h3>Macro-etch cross section</h3>
+    <div class="macroCtl"><span>Cut at</span><input type="range" id="cutX" min="0" max="8" step="0.05" value="4"><b class="mono" id="cutV">4.00″</b></div>
+    <canvas class="chart" id="macro" width="740" height="560"></canvas>
+  </div>
+  <div class="sec"><h3>Discontinuities</h3><ul class="defs" id="defs"></ul></div>
+  <div class="sec"><h3>Your technique</h3><div class="tech" id="tech"></div></div>
+  <div class="sec"><h3>Instructor tips</h3><ol class="tips" id="tips"></ol></div>
+  <div class="inspBtns">
+    <button class="primary" id="againBtn">Weld a new coupon</button>
+    <button id="setBtn2">Change settings</button>
+  </div>
+</div>
+
+<div class="panel hidden" id="chip">
+  <div class="ptitle">CHIP THE SLAG</div>
+  <div style="font-size:14px;margin-top:4px">Click or drag along the bead with your chipping hammer.</div>
+  <div class="bar2"><i id="chipBar"></i></div>
+  <div class="mono" id="chipPct" style="font-size:13px;color:var(--dim);margin-bottom:8px">0% clean</div>
+  <button id="brushBtn">Wire-brush the rest ▸</button>
+  <button id="skipBtn" class="hidden" style="margin-left:6px">Skip cleaning</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const rand = (a,b) => a + Math.random()*(b-a);
+
+// ---------- Geometry constants (units: inches) ----------
+let L = 8, X0 = -4, X1 = 4;             // weld length & joint extents (pipe: circumference)
+let T = 0.375;                           // plate thickness (set from the setup screen)
+let ROOT_Y = T, ROOT_Z = T/2;            // root line of the front fillet
+const PL = 8.5;                          // coupon length
+const N = 200; let DX = L/N;             // bead bins
+const M = 60;                            // samples across the joint cross-section
+const WIRE_AREA = Math.PI * (0.035/2)**2;
+const TARGET_LEG = 0.25, LEG_MIN = 7/32, LEG_MAX = 5/16;
+
+const ELECTRODES = {
+  E7018:{ideal:130, lo:110, hi:150, burn:9.5,  dep:2.35, pen:1.0,  c0:0.22, slag:0.03,  coat:0x9c9d96, ripL:0.04,  ripA:0.0035, sf:0,    stick:0.035, inc:1},
+  E6010:{ideal:105, lo:85,  hi:125, burn:10.5, dep:1.9,  pen:1.45, c0:0.06, slag:0.012, coat:0xb59a72, ripL:0.075, ripA:0.007,  sf:0.25, stick:0.025, inc:0.5}
+};
+const CORE_AREA = Math.PI*(0.125/2)**2, ROD_LEN = 14, STUB = 1.75;
+const RIP = {L:0.055, A:0.0045, mode:'sin'};
+const isS = () => state.process === 'smaw';
+const isT = () => state.process === 'gtaw';
+const isG = () => state.process === 'gmaw';
+const TIG_IDEAL = 170, FEED_V = 0.0104;
+const spec = () => ELECTRODES[state.rod];
+function depRate(){
+  if (isS()) return spec().burn*(state.amps/spec().ideal)/60*CORE_AREA*spec().dep;
+  if (isT()) return FEED_V*0.3*POSMUL.gtaw[posN()];
+  return state.wfs/60*WIRE_AREA;
+}
+function passArea(){ if (isPipe()) return (A_FULL + (isT() ? 0.45 : 0.7)*(2*G_TOPH + 0.12)*0.06)/fillPasses(); if (isGr()) return 0.06; return 0.62*state.fsize*state.fsize/fillPasses(); }
+const targets = () => { const v = depRate()/passArea()*60;
+  return {sg:[r1(v*0.82), r1(v*1.18)], sy:[r1(v*0.64), r1(v*1.36)], pace:r1(v)}; };
+const spMid = () => { const t = targets(); return (t.sg[0] + t.sg[1])/2; };
+const idealV = wfs => 14 + wfs*0.02;
+// ---------- Joint & position ----------
+const S2 = Math.SQRT1_2;
+let G_GAP = 0.25, LAND = 0, TANB = Math.tan(22.5*Math.PI/180);
+let G_TOPH = G_GAP/2 + T*TANB, A_FULL = G_GAP*T + T*T*TANB;
+const isPipe = () => state.pos[0] === 'P';
+const isGr = () => state.pos[1] === 'G' || isPipe();
+const posN = () => isPipe() ? {P1G:1, P2G:2, P5G:3, P6G:3}[state.pos] : +state.pos[0];
+const posLabel = () => isPipe() ? state.pos.slice(1) + ' pipe' : state.pos;
+const PIPES = {'2s80':{od:2.375, t:0.218, name:'2″ Sch 80'}, '6s40':{od:6.625, t:0.280, name:'6″ Sch 40'}, '6s80':{od:6.625, t:0.432, name:'6″ Sch 80'}};
+const PIPE = {Ro:3.3125, Ri:2.88, th0:0};
+let SEGS = [{a:-4, b:4, dir:1}];
+const seg = () => SEGS[state.seg] || SEGS[0];
+const segDone = () => (state.x - seg().b)*seg().dir > -0.1;
+const segPast = () => (state.x - seg().b)*seg().dir > 0.05;
+const TH_WELD = Math.PI - 0.3;                       // rolled pipe: the arc stays near 12 o'clock, welder side
+const waIdeal = () => isGr() ? 90 : 45;
+const POSP = {1:{hmax:1.4, sag:0.3, c0:-0.03, pen:1.05}, 2:{hmax:1.25, sag:0, c0:0, pen:1}, 3:{hmax:1.05, sag:1.0, c0:0.08, pen:1.12}, 4:{hmax:1.0, sag:1.3, c0:0.1, pen:0.9}};
+const POSMUL = {gmaw:{1:1.15,2:1,3:0.65,4:0.9}, smaw:{1:1.08,2:1,3:0.85,4:0.92}, gtaw:{1:1.1,2:1,3:0.8,4:0.9}};
+const RECO = {wfs:{1:460,2:400,3:260,4:360}, E7018:{1:140,2:130,3:115,4:120}, E6010:{1:115,2:105,3:95,4:100}, tig:{1:210,2:200,3:180,4:190}};
+const tScale = e => clamp(Math.pow(T/0.375, e), 0.8, 1.25);
+const recoWfs = () => Math.round(RECO.wfs[posN()]*tScale(0.3)*(isGr() ? 1 : clamp(state.fsize/0.25, 0.75, 1))/5)*5;
+const recoAmps = () => Math.round(RECO[state.rod][posN()]*tScale(0.2)*(isGr() ? 1 : clamp(Math.sqrt(state.fsize/0.25), 0.85, 1)));
+const recoTig = () => Math.round(RECO.tig[posN()]*tScale(0.25)/5)*5;
+const tigIdeal = () => recoTig()*0.85;
+// AWS D1.1 reference values (statically loaded, nontubular)
+const SINGLE_MAX = {smaw:{1:3/8,2:5/16,3:1/2,4:5/16}, gmaw:{1:1/2,2:3/8,3:1/2,4:5/16}, gtaw:{1:5/16,2:5/16,3:5/16,4:5/16}};
+const singleMax = () => SINGLE_MAX[state.process][posN()];
+const minFillet = t => t <= 0.25 ? 1/8 : t <= 0.5 ? 3/16 : t <= 0.75 ? 1/4 : 5/16;
+const underrunU = L => L <= 3/16 ? 1/16 : L <= 1/4 ? 3/32 : 1/8;
+const maxConvex = W => W <= 5/16 ? 1/16 : W < 1 ? 1/8 : 3/16;
+const maxRein = () => T >= 1 ? 3/16 : 1/8;
+const splitW = () => posN() === 3 ? 1 : 5/8;
+function fr32(v){ const n = Math.round(Math.abs(v)*32); if (!n) return '0″'; let a = n, b = 32; while (a % 2 === 0 && b > 1){ a /= 2; b /= 2; }
+  const w = Math.floor(a/b), r = a % b; return (v < 0 ? '−' : '') + (w ? w + (r ? ' ' : '') : '') + (r ? `${r}/${b}` : '') + '″'; }
+function fillPasses(){
+  if (isGr()) return Math.max(2, Math.ceil((A_FULL + 0.67*(2*G_TOPH + 0.12)*0.06)/0.06));
+  return state.fsize <= singleMax() + 1e-6 ? 1 : state.fsize <= 0.5 ? 3 : 6;
+}
+const BASE_T = {gmaw:{sg:[9,13], sy:[7,15], pace:11}, smaw:{sg:[6,9], sy:[4.5,11], pace:7.5}, gtaw:{sg:[4,6], sy:[3,7.5], pace:5}};
+const BASEMID = {gmaw:11, smaw:7.5, gtaw:5};
+const r1 = v => Math.round(v*10)/10;
+const POS_INFO = {
+  '1F':'Flat fillet: the T-joint is rolled 45° so the weld faces straight up. The easiest position, with a big puddle and fast travel. Weld left → right.',
+  '2F':'Horizontal fillet: the flange is flat and the web stands up. Gravity pulls metal onto the flange, so watch for undercut on the web. Weld left → right.',
+  '3F':'Vertical-up fillet: the joint runs straight up. Weld bottom → top with lower settings and slower travel, or the puddle sags and drips.',
+  '4F':'Overhead fillet: the horizontal plate is above you. Keep the puddle small and the arc tight, and travel briskly so it doesn\'t sag.',
+  '1G':'Flat groove: ⅜″ plates, 22.5° bevels, ¼″ root opening, on a backing strip. Run a root, fill, then cap pass (N = next pass). Keep the torch square (90°).',
+  '2G':'Horizontal groove: the plates stand vertical with the joint running sideways. Gravity pulls each pass toward the lower bevel.',
+  '3G':'Vertical-up groove: weld bottom → top, pass by pass. Lower heat and slow, steady travel. The ultimate test.',
+  '4G':'Overhead groove: the plates are above you. Small, fast, tight-arc passes so nothing drips out of the groove.',
+  'P1G':'The pipe turns on rollers and you weld near the top. While welding, drag the mouse along the joint (or hold →) to roll it.',
+  'P2G':'The pipe stands vertical and the joint runs around it horizontally. Weld two halves from the front around to the back (V = walk around). Weld in stops: let off the trigger and the view moves around with you, then restart on your crater.',
+  'P5G':'The pipe is horizontal and fixed. Weld uphill in two halves from 6 o\'clock to 12, through vertical and overhead (V = walk around). Weld in stops: let off the trigger and the view moves around with you, then restart on your crater.',
+  'P6G':'The pipe is fixed at 45°. Every position in one coupon. Two uphill halves from the bottom to the top (V = walk around). Weld in stops: let off the trigger and the view moves around with you, then restart on your crater.'
+};
+const POSCAM = {'P1G':{theta:0.55,phi:0.9,r:15}, 'P2G':{theta:-0.85,phi:1.15,r:16}, 'P5G':{theta:0.8,phi:1.25,r:17}, 'P6G':{theta:0.8,phi:1.2,r:18},
+                '1F':{theta:0.3,phi:0.62,r:13}, '2F':{theta:0.3,phi:1.0,r:13}, '3F':{theta:-0.75,phi:1.38,r:18}, '4F':{theta:0.3,phi:2.15,r:13},
+                '1G':{theta:0.3,phi:0.72,r:12}, '2G':{theta:0.3,phi:1.42,r:13}, '3G':{theta:-0.75,phi:1.4,r:17}, '4G':{theta:0.3,phi:2.3,r:12}};
+const BASES = {
+  'P1G':[[0,0,1],[0,1,0],[-1,0,0]], 'P5G':[[0,0,1],[0,1,0],[-1,0,0]], 'P6G':[[0,0,1],[-S2,S2,0],[-S2,-S2,0]], 'P2G':[[1,0,0],[0,0,1],[0,-1,0]],
+  '1F':[[1,0,0],[0,S2,-S2],[0,S2,S2]], '2F':[[1,0,0],[0,1,0],[0,0,1]], '3F':[[0,1,0],[-S2,0,S2],[S2,0,S2]], '4F':[[1,0,0],[0,0,1],[0,-1,0]],
+  '1G':[[1,0,0],[0,1,0],[0,0,1]], '2G':[[1,0,0],[0,0,1],[0,-1,0]], '3G':[[0,1,0],[0,0,1],[1,0,0]], '4G':[[1,0,0],[0,-1,0],[0,0,-1]]
+};
+const POSY = {'P1G':5.2, 'P2G':4.5, 'P5G':5.2, 'P6G':6.0, '1F':2.6, '2F':0, '3F':5.0, '4F':7.5, '1G':0.375, '2G':5.0, '3G':5.0, '4G':8.0};
+const ampsFor = (wfs, ct) => (40 + 0.4*wfs) * (1 - 0.35*(ct - 0.5));
+
+// ---------- State ----------
+const state = {
+  phase:'setup', mode:'practice',
+  wfs:400, volts:22.0, gas:30, helmet:true, sound:true,
+  tigMax:200, argon:20, pedal:0.85, H:0, feed:false, feedT:0, contam:false, contams:0, grind:0, cracks:0, dabs:[],
+  pos:'2F', pass:1, chipNext:false, pipe:'6s80', seg:0, pnd:1, thick:0.375, fsize:0.25, aimU:0, lastW:0.38,
+  process:'gmaw', rod:'E7018', amps:130, arcLen:0.125, rodLen:14, sticks:0, rodChanges:0, stuck:0,
+  workAngle:45, travelAngle:10, ctwd:0.5,
+  x:X0-0.6, prevX:X0-0.6, speed:0,
+  trigger:false, arc:false, burnback:0, arcOnT:0,
+  paceX:X0, firstArc:false,
+  starts:0, burnbacks:0, spatter:0, noHelmetTime:0,
+  drift:{w:0,t:0}, doneTimer:0,
+  st:null
+};
+function freshStats(){
+  return {t:0, sp:0, sp2:0, wa:0, ta:0, ct:0, ht:0, pd:0, feedT:0, sagT:0, z:{}};
+}
+state.st = freshStats();
+let bins = [];
+function freshBins(){
+  bins = Array.from({length:N}, () => ({vol:0, b:0, c:0, pen:0, por:0, uc:0, cold:0, lof:0, inc:0, burn:0, rprot:0, rpv:0, slag:0, slagPass:0, rp:0, rv:0, h:0, ox:0, ucx:0, crack:0, temp:0}));
+}
+freshBins();
+
+// ---------- Renderer / scene ----------
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0c0e11);
+scene.fog = new THREE.Fog(0x0c0e11, 28, 70);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
+
+// environment map (procedural shop lighting) for metal reflections
+(function(){
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+  const g = cv.getContext('2d');
+  const gr = g.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,'#3a4048'); gr.addColorStop(0.45,'#1e2329'); gr.addColorStop(0.55,'#15181c'); gr.addColorStop(1,'#0a0b0d');
+  g.fillStyle = gr; g.fillRect(0,0,512,256);
+  g.fillStyle = '#e8f0ff';
+  for (let i=0;i<5;i++){ g.fillRect(40+i*100, 26, 46, 10); }
+  g.fillStyle = 'rgba(160,40,25,.6)'; g.fillRect(0,110,512,40);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.encoding = THREE.sRGBEncoding;
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromEquirectangular(tex).texture;
+  tex.dispose(); pm.dispose();
+})();
+
+const hemi = new THREE.HemisphereLight(0xcfd8e6, 0x33363b, 0.6); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 1.05);
+key.position.set(-9, 18, 3.5); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, {left:-9, right:9, top:9, bottom:-9, near:1, far:40});
+key.shadow.bias = -0.0005;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x8fb4ff, 0.35); fill.position.set(9, 6, -7); scene.add(fill);
+const under = new THREE.DirectionalLight(0xc7cfdb, 0.5); under.position.set(3, -10, 8); scene.add(under);
+const arcLight = new THREE.PointLight(0xcfe6ff, 0, 16, 2);
+
+// ---------- Textures ----------
+function noiseTex(base, spots, size=512, scratches=true){
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const g = cv.getContext('2d');
+  g.fillStyle = base; g.fillRect(0,0,size,size);
+  for (let i=0;i<spots.n;i++){
+    const x=Math.random()*size, y=Math.random()*size, r=rand(spots.r[0],spots.r[1]);
+    const gr=g.createRadialGradient(x,y,0,x,y,r);
+    const c = spots.c[i%spots.c.length];
+    gr.addColorStop(0,c); gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr; g.fillRect(x-r,y-r,2*r,2*r);
+  }
+  if (scratches){
+    g.strokeStyle='rgba(255,255,255,.05)'; g.lineWidth=1;
+    for (let i=0;i<160;i++){ const x=Math.random()*size, y=Math.random()*size, a=rand(-0.2,0.2), l=rand(20,120);
+      g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*l, y+Math.sin(a)*l); g.stroke(); }
+  }
+  const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  return t;
+}
+const millScale = noiseTex('#5f666e', {n:260, r:[8,46], c:['rgba(40,46,56,.32)','rgba(110,116,122,.25)','rgba(70,60,52,.22)']});
+const tableTex = noiseTex('#3a3d41', {n:200, r:[10,60], c:['rgba(20,20,22,.55)','rgba(90,80,70,.25)','rgba(60,64,70,.4)']});
+tableTex.repeat.set(3,2);
+
+function glowTex(){
+  const cv=document.createElement('canvas'); cv.width=cv.height=128;
+  const g=cv.getContext('2d'); const gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.2,'rgba(255,255,255,.65)');
+  gr.addColorStop(0.5,'rgba(255,255,255,.15)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr; g.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(cv);
+}
+const GLOW = glowTex();
+
+// ---------- Shop / coupon ----------
+const plateMat = new THREE.MeshStandardMaterial({map:millScale, color:0xffffff, metalness:0.55, roughness:0.62});
+const tableMat = new THREE.MeshStandardMaterial({map:tableTex, color:0xffffff, metalness:0.6, roughness:0.7});
+
+const table = new THREE.Mesh(new THREE.BoxGeometry(34, 1, 18), tableMat);
+table.position.set(0, -0.5, 0); table.receiveShadow = true; scene.add(table);
+// table slots
+const slotMat = new THREE.MeshStandardMaterial({color:0x111214, roughness:0.9});
+for (let i=-3;i<=3;i++){ const s=new THREE.Mesh(new THREE.BoxGeometry(34,0.02,0.18), slotMat); s.position.set(0,0.001,i*2.4+ (i===0?6:0)); if(i!==0) scene.add(s); }
+
+const coupon = new THREE.Group(); scene.add(coupon); coupon.add(arcLight);
+// The weld is modeled as a straight joint (x along the weld, y up from the root, z across the joint).
+// For pipe, x is arc length on the OD, so every point is wrapped onto the pipe here.
+const _bq = new THREE.Quaternion(), _bm = new THREE.Matrix4(), _bt = new THREE.Vector3(), _br = new THREE.Vector3(), _bz = new THREE.Vector3(0,0,-1);
+const thetaAt = x => PIPE.th0 + (x - X0)/PIPE.Ro;
+function bendPos(v){ if (!isPipe()) return v; const th = thetaAt(v.x), r = PIPE.Ri + v.y, z = v.z; return v.set(r*Math.sin(th), -r*Math.cos(th), -z); }
+function bendQuat(th){ _bt.set(Math.cos(th), Math.sin(th), 0); _br.set(Math.sin(th), -Math.cos(th), 0); _bm.makeBasis(_bt, _br, _bz); return _bq.setFromRotationMatrix(_bm); }
+function bendObj(o){ if (!isPipe()) return; const th = thetaAt(o.position.x); bendPos(o.position); o.quaternion.premultiply(bendQuat(th)); }
+const bendP = o => { if (isPipe()) bendPos(o.position); };
+let baseQ = new THREE.Quaternion();
+function applyRoll(){
+  if (state.pos !== 'P1G') return;
+  coupon.quaternion.copy(baseQ).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), TH_WELD - thetaAt(state.x)));
+  coupon.updateMatrixWorld(true);
+  GL.set(0,-1,0).applyQuaternion(coupon.quaternion.clone().invert());
+}
+const filletG = new THREE.Group(), grooveG = new THREE.Group(); coupon.add(filletG, grooveG);
+const GL = new THREE.Vector3(0,-1,0);                      // gravity in coupon-local coordinates
+const NF = new THREE.Vector3(0, S2, S2), NG = new THREE.Vector3(0, 1, 0);
+const jointN = () => isGr() ? NG : NF;
+const aimY = () => isGr() ? T*0.5 : ROOT_Y, aimZ = () => isGr() ? 0 : ROOT_Z;
+const base = new THREE.Mesh(new THREE.BoxGeometry(PL, T, 6), plateMat);
+base.position.set(0, T/2, 0); base.castShadow = base.receiveShadow = true; filletG.add(base);
+const webMat = plateMat.clone(); webMat.color = new THREE.Color(0xc4c8cc); webMat.map = millScale.clone(); webMat.map.needsUpdate = true; webMat.map.offset.set(0.37, 0.21);
+const web = new THREE.Mesh(new THREE.BoxGeometry(PL, 4, T), webMat);
+web.position.set(0, T + 2, 0); web.castShadow = web.receiveShadow = true; filletG.add(web);
+// V-groove coupon: two beveled plates on a backing strip
+function prism(pts, mat){
+  const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(q => sh.lineTo(q[0], q[1])); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, {depth:PL, bevelEnabled:false}); g.rotateY(-Math.PI/2); g.translate(PL/2, 0, 0);
+  const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; return m;
+}
+let plateL = prism([[-3.2,0],[-G_GAP/2,0],[-G_TOPH,T],[-3.2,T]], plateMat), plateR = prism([[G_GAP/2,0],[3.2,0],[3.2,T],[G_TOPH,T]], webMat);
+grooveG.add(plateL, plateR);
+const backing = new THREE.Mesh(new THREE.BoxGeometry(PL, 0.375, 1.0), plateMat);
+backing.position.set(0, -0.1875, 0); backing.castShadow = backing.receiveShadow = true; grooveG.add(backing);
+grooveG.visible = false;
+// positioner (for every position except the ones that sit on the table)
+const posMat = new THREE.MeshStandardMaterial({color:0x2c3138, metalness:0.6, roughness:0.5});
+const clampBlk = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.9, 1.4), posMat); clampBlk.castShadow = true; coupon.add(clampBlk);
+const post = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1, 1.1), posMat); post.castShadow = true; scene.add(post);
+const pipeG = new THREE.Group(); coupon.add(pipeG); pipeG.visible = false;
+const pipeMat = plateMat.clone(); pipeMat.side = THREE.DoubleSide;
+let pipeL = null, pipeR = null;
+function lathePipe(side){
+  const Ro = PIPE.Ro, Ri = PIPE.Ri, len = 4;
+  const pts = [[Ri, G_GAP/2], [Ri + LAND, G_GAP/2], [Ro, G_TOPH], [Ro, len], [Ri, len], [Ri, G_GAP/2]].map(([r,u]) => new THREE.Vector2(r, side*u));
+  const g = new THREE.LatheGeometry(pts, 96); g.rotateX(-Math.PI/2);
+  const m = new THREE.Mesh(g, pipeMat); m.castShadow = m.receiveShadow = true; return m;
+}
+const rollers = new THREE.Group(); scene.add(rollers); rollers.visible = false;
+[-1, 1].forEach(sd => { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 10, 24), posMat); c.rotation.z = Math.PI/2; c.userData.sd = sd; c.castShadow = true; rollers.add(c); });
+function applyPosition(){
+  const B = BASES[state.pos], mtx = new THREE.Matrix4();
+  mtx.makeBasis(new THREE.Vector3(...B[0]), new THREE.Vector3(...B[1]), new THREE.Vector3(...B[2]));
+  coupon.quaternion.setFromRotationMatrix(mtx); baseQ.copy(coupon.quaternion);
+  coupon.position.set(0, POSY[state.pos], 0);
+  coupon.updateMatrixWorld(true);
+  GL.set(0,-1,0).applyQuaternion(coupon.quaternion.clone().invert());
+  filletG.visible = !isGr(); grooveG.visible = isGr() && !isPipe(); pipeG.visible = isPipe();
+  const gz = isGr();
+  chalkLines.forEach(l => l.position.z = gz ? 0.95 : ROOT_Z + 0.95);
+  chalkLabels.forEach(l => l.position.z = gz ? 1.95 : ROOT_Z + 1.95);
+  setThickness();
+  chalkLines.forEach(l => l.position.z = gz ? G_TOPH + 0.7 : ROOT_Z + 0.95);
+  chalkLabels.forEach(l => l.position.z = gz ? G_TOPH + 1.7 : ROOT_Z + 1.95);
+  if (isPipe()) placeChalkPipe();
+  applyRoll();
+  const onTable = state.pos === '2F' || state.pos === '1G' || state.pos === 'P1G';
+  clampBlk.visible = post.visible = !onTable;
+  rollers.visible = state.pos === 'P1G';
+  rollers.children.forEach(c => c.position.set(0, POSY.P1G - Math.sqrt((PIPE.Ro + 0.5)**2 - (PIPE.Ro*0.6)**2), c.userData.sd*PIPE.Ro*0.6));
+  if (isPipe()) clampBlk.position.set(0, 0, 4.5); else clampBlk.position.set(-PL/2 - 0.5, T/2, -1.6);
+  const cw = clampBlk.getWorldPosition(new THREE.Vector3());
+  post.position.set(cw.x, cw.y/2, cw.z); post.scale.set(1, Math.max(0.1, cw.y), 1);
+}
+
+// back-side tack welds
+const tackMat = new THREE.MeshStandardMaterial({color:0x8e9196, metalness:0.7, roughness:0.4});
+const tacks = [-3.7, 3.7].map(x => {
+  const t = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), tackMat);
+  t.scale.set(0.28, 0.12, 0.12); t.position.set(x, T + 0.04, -T/2 - 0.04); t.castShadow = true; filletG.add(t); return t;
+});
+function setThickness(){
+  const pp = isPipe();
+  T = pp ? PIPES[state.pipe].t : state.thick; ROOT_Y = T; ROOT_Z = T/2;
+  G_GAP = pp ? 0.125 : 0.25; LAND = pp ? 1/16 : 0; TANB = Math.tan((pp ? 37.5 : 22.5)*Math.PI/180);
+  G_TOPH = G_GAP/2 + (T - LAND)*TANB; A_FULL = G_GAP*T + (T - LAND)**2*TANB;
+  if (pp){
+    PIPE.Ro = PIPES[state.pipe].od/2; PIPE.Ri = PIPE.Ro - T; PIPE.th0 = state.pos === 'P2G' ? Math.PI : 0;
+    L = 2*Math.PI*PIPE.Ro; X0 = 0; X1 = L; DX = L/N;
+    SEGS = state.pos === 'P1G' ? [{a:0, b:L, dir:1}] : [{a:0, b:L/2, dir:1}, {a:L, b:L/2, dir:-1}];
+    if (pipeL){ pipeG.remove(pipeL, pipeR); pipeL.geometry.dispose(); pipeR.geometry.dispose(); }
+    pipeL = lathePipe(-1); pipeR = lathePipe(1); pipeG.add(pipeL, pipeR);
+  } else { L = 8; X0 = -4; X1 = 4; DX = L/N; SEGS = [{a:X0, b:X1, dir:1}]; }
+  for (let i=0;i<N;i++) for (let j=0;j<M;j++) bPos[(i*M+j)*3] = X0 + (i+0.5)*DX;
+  base.geometry.dispose(); base.geometry = new THREE.BoxGeometry(PL, T, 6); base.position.y = T/2;
+  web.geometry.dispose(); web.geometry = new THREE.BoxGeometry(PL, 4, T); web.position.y = T + 2;
+  grooveG.remove(plateL, plateR); plateL.geometry.dispose(); plateR.geometry.dispose();
+  plateL = prism([[-3.2,0],[-G_GAP/2,0],[-G_TOPH,T],[-3.2,T]], plateMat); plateR = prism([[G_GAP/2,0],[3.2,0],[3.2,T],[G_TOPH,T]], webMat);
+  grooveG.add(plateL, plateR);
+  arrow.visible = !pp;
+  tacks.forEach(t => t.position.set(t.position.x, T + 0.04, -T/2 - 0.04));
+  chalkLines.forEach(l => l.position.y = T + 0.002); chalkLabels.forEach(l => l.position.y = T + 0.003);
+  setGrid();
+}
+
+// soapstone marks
+function labelPlane(text, w=1.6, h=0.4){
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=64;
+  const g=cv.getContext('2d'); g.font='bold 44px "Barlow Condensed", sans-serif';
+  g.fillStyle='rgba(235,235,225,.85)'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText(text,128,34);
+  const tex=new THREE.CanvasTexture(cv);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({map:tex, transparent:true, depthWrite:false}));
+  m.rotation.x=-Math.PI/2; return m;
+}
+const chalk = new THREE.MeshBasicMaterial({color:0xe9e7dc, transparent:true, opacity:0.8});
+const chalkLines = [], chalkLabels = [];
+[X0, X1].forEach((x,i) => {
+  const ln = new THREE.Mesh(new THREE.PlaneGeometry(0.04, 1.3), chalk);
+  ln.rotation.x = -Math.PI/2; ln.position.set(x, T+0.002, ROOT_Z + 0.95); coupon.add(ln); chalkLines.push(ln);
+  const lb = labelPlane(i ? 'STOP' : 'START'); lb.position.set(x, T+0.003, ROOT_Z + 1.95); coupon.add(lb); chalkLabels.push(lb);
+});
+const arrow = labelPlane('→', 0.8, 0.4); arrow.position.set(0, T+0.003, ROOT_Z+1.95); coupon.add(arrow); chalkLabels.push(arrow);
+function placeChalkPipe(){
+  const sA = SEGS[0], stopX = SEGS.length > 1 ? sA.b : L - 0.9;
+  [[chalkLines[0], 0.03], [chalkLines[1], stopX]].forEach(([o, x]) => { o.rotation.set(-Math.PI/2, 0, 0); o.position.set(x, T + 0.003, G_TOPH + 0.75); bendObj(o); });
+  [[chalkLabels[0], 0.75], [chalkLabels[1], stopX - (SEGS.length > 1 ? 0 : 0.6)]].forEach(([o, x]) => { o.rotation.set(-Math.PI/2, 0, Math.PI/2); o.position.set(x, T + 0.004, G_TOPH + 1.7); bendObj(o); });
+}
+
+// welding curtain + machine
+const curtain = new THREE.Mesh(new THREE.PlaneGeometry(60, 30), new THREE.MeshStandardMaterial({color:0x6a1c12, roughness:0.95, emissive:0x1a0503}));
+curtain.position.set(0, 10, -11); scene.add(curtain);
+const machine = new THREE.Group();
+const mBody = new THREE.Mesh(new THREE.BoxGeometry(5, 5.5, 6), new THREE.MeshStandardMaterial({color:0x1d4f91, metalness:0.4, roughness:0.5}));
+mBody.position.y = 2.75; mBody.castShadow = true; machine.add(mBody);
+const dispCv = document.createElement('canvas'); dispCv.width=256; dispCv.height=128;
+const dispTex = new THREE.CanvasTexture(dispCv);
+const disp = new THREE.Mesh(new THREE.PlaneGeometry(3.4,1.7), new THREE.MeshBasicMaterial({map:dispTex}));
+disp.position.set(0, 3.7, 3.01); machine.add(disp);
+machine.position.set(-17, 0, -10); machine.rotation.y = 0.6; scene.add(machine);
+function drawDisplay(){
+  const g = dispCv.getContext('2d');
+  g.fillStyle='#050807'; g.fillRect(0,0,256,128);
+  g.font='bold 54px "JetBrains Mono", monospace'; g.fillStyle='#ff3b2f'; g.textAlign='center';
+  if (state.process === 'gtaw'){
+    g.fillText(String(state.tigMax), 128, 76);
+    g.font='bold 18px Barlow, sans-serif'; g.fillStyle='#ff8a7a'; g.fillText('MAX AMPS · TIG · DCEN', 128, 108);
+  } else if (state.process === 'smaw'){
+    g.fillText(String(state.amps), 128, 76);
+    g.font='bold 18px Barlow, sans-serif'; g.fillStyle='#ff8a7a'; g.fillText('AMPS · STICK · DCEP', 128, 108);
+  } else {
+    g.fillText(String(state.wfs), 68, 76); g.fillText(state.volts.toFixed(1), 190, 76);
+    g.font='bold 18px Barlow, sans-serif'; g.fillStyle='#ff8a7a'; g.fillText('IPM', 68, 108); g.fillText('VOLTS', 190, 108);
+  }
+  dispTex.needsUpdate = true;
+}
+
+// ---------- Bead mesh ----------
+const beadGeo = new THREE.BufferGeometry();
+const bPos = new Float32Array(N*M*3), bHeat = new Float32Array(N*M), bCol = new Float32Array(N*M*3);
+for (let i=0;i<N;i++) for (let j=0;j<M;j++){
+  const k = i*M + j, s = j/(M-1), toe = Math.pow(Math.abs(2*s-1), 6), v = rand(-0.03,0.03);
+  const v2 = v*0.25;
+  bCol[k*3]   = lerp(0.135, 0.20, toe) + v2;
+  bCol[k*3+1] = lerp(0.140, 0.14, toe) + v2;
+  bCol[k*3+2] = lerp(0.155, 0.07, toe) + v2;
+  bPos[k*3] = X0 + (i+0.5)*DX; bPos[k*3+1] = ROOT_Y; bPos[k*3+2] = ROOT_Z;
+}
+const baseCol = bCol.slice();
+const idx = [];
+for (let i=0;i<N-1;i++) for (let j=0;j<M-1;j++){
+  const a=i*M+j, b=(i+1)*M+j, c=(i+1)*M+j+1, d=i*M+j+1;
+  idx.push(a,b,d, b,c,d);
+}
+beadGeo.setIndex(idx);
+beadGeo.setAttribute('position', new THREE.BufferAttribute(bPos,3));
+beadGeo.setAttribute('heat', new THREE.BufferAttribute(bHeat,1));
+beadGeo.setAttribute('color', new THREE.BufferAttribute(bCol,3));
+const beadMat = new THREE.MeshStandardMaterial({color:0xffffff, vertexColors:true, metalness:0.6, roughness:0.5, envMapIntensity:0.32});
+function addHeat(m){ m.onBeforeCompile = sh => {
+  sh.vertexShader = 'attribute float heat;\nvarying float vHeat;\n' +
+    sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vHeat = heat;');
+  sh.fragmentShader = 'varying float vHeat;\n' +
+    sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  float hh = clamp(vHeat, 0.0, 1.0);
+  vec3 hc = mix(vec3(0.45,0.02,0.0), vec3(1.0,0.32,0.02), smoothstep(0.12,0.55,hh));
+  hc = mix(hc, vec3(1.0,0.88,0.55), smoothstep(0.78,1.0,hh));
+  totalEmissiveRadiance += hc * smoothstep(0.03,0.22,hh) * (0.5 + 3.2*hh);`);
+}; }
+addHeat(beadMat);
+const bead = new THREE.Mesh(beadGeo, beadMat);
+bead.castShadow = true; bead.receiveShadow = true; bead.frustumCulled = false;
+coupon.add(bead);
+// slag coat (SMAW)
+const sPos = new Float32Array(N*M*3), sHeat = new Float32Array(N*M);
+sPos.set(bPos);
+const slagGeo = new THREE.BufferGeometry();
+slagGeo.setIndex(idx);
+slagGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3));
+slagGeo.setAttribute('heat', new THREE.BufferAttribute(sHeat,1));
+const slagMat = new THREE.MeshStandardMaterial({color:0x2e2620, metalness:0.15, roughness:0.2, envMapIntensity:0.8});
+addHeat(slagMat);
+const slag = new THREE.Mesh(slagGeo, slagMat);
+slag.castShadow = true; slag.receiveShadow = true; slag.frustumCulled = false; slag.visible = false;
+coupon.add(slag);
+
+// ---------- Cross-section model ----------
+// Each bin along the weld keeps its surface S(u) across the joint as a height field: u runs across
+// the joint, h is height along the joint's outward normal. Fillet: root at the origin and floor h = |u|.
+// Groove: h = y, floor = backing, bevel walls, then plate top. Passes are replayed in order, and each bead
+// level-fills the low ground under its aim point, so beads stack and sit side by side (split layers).
+let U_MAX = 0.85, DU = 1.7/(M-1);
+const uAt = j => U_MAX - j*DU;
+function floorF(u){
+  if (isGr()){ const a = Math.abs(u); if (a < G_GAP/2) return 0; return Math.min(T, LAND + (a - G_GAP/2)/TANB); }
+  return Math.abs(u);
+}
+const FLOOR = new Float32Array(M);
+const SURF = new Float32Array(N*M);
+const dirty = new Uint8Array(N).fill(1);
+let passes = [];
+function setGrid(){ U_MAX = isGr() ? G_TOPH + 0.42 : 0.85; DU = 2*U_MAX/(M-1); for (let j=0;j<M;j++) FLOOR[j] = floorF(uAt(j)); dirty.fill(1); }
+function newPass(){ passes.push({A:new Float32Array(N), U:new Float32Array(N), W:new Float32Array(N), C:new Float32Array(N)}); }
+const _lp = {y:0, z:0};
+function toLocal(u, h){ if (isGr()){ _lp.y = h; _lp.z = u; } else { _lp.y = ROOT_Y + (h - u)*S2; _lp.z = ROOT_Z + (h + u)*S2; } return _lp; }
+const _g = new Float32Array(M);
+function fillBead(arr, o, A, u0, w, c, pk){
+  const half = Math.max(0.06, w/2), kc = clamp(c, -0.15, 0.75)*0.22*w;
+  const j0 = clamp(Math.floor((U_MAX - (u0 + 1.3*half))/DU), 0, M-1), j1 = clamp(Math.ceil((U_MAX - (u0 - 1.3*half))/DU), 0, M-1);
+  let lo = 1e9, hi = -1e9;
+  for (let j=j0;j<=j1;j++){ const q = (uAt(j) - u0)/half, aq = Math.abs(q); _g[j] = kc*(1 - q*q) - w*Math.max(0, aq - 0.75)**2; const d = arr[o+j] - _g[j]; if (d < lo) lo = d; if (d > hi) hi = d; }
+  hi += A/((j1 - j0 + 1)*DU) + 1e-4;
+  for (let it=0; it<26; it++){ const mid = (lo + hi)/2; let ar = 0; for (let j=j0;j<=j1;j++){ const v = mid + _g[j] - arr[o+j]; if (v > 0) ar += v; } if (ar*DU < A) lo = mid; else hi = mid; }
+  const Lv = hi;
+  let trapped = 0;
+  if (pk) for (const q of pk){
+    if (q.dead || q.j < j0 || q.j > j1) continue;
+    if (Lv + _g[q.j] > arr[o+q.j] + 0.02){ q.dead = true; if (Math.abs((uAt(q.j) - u0)/half) > 0.72) trapped++; }
+  }
+  for (let j=j0;j<=j1;j++){ const v = Lv + _g[j]; if (v > arr[o+j]) arr[o+j] = v; }
+  if (pk){
+    // a deep valley left between this bead and a wall or earlier bead becomes a "pocket"
+    [[j0 - 1, -1, j0], [j1 + 1, 1, j1]].forEach(([js, dir, je]) => {
+      if (js < 0 || js >= M) return;
+      const edge = arr[o+je];
+      if (edge - arr[o+js] < 0.05) return;
+      for (let t=1; t<=Math.round(0.3/DU); t++){ const jj = js + dir*t; if (jj < 0 || jj >= M) break; if (arr[o+jj] >= edge - 0.015){ pk.push({j:js, dead:false}); break; } }
+    });
+  }
+  return trapped;
+}
+function replayInto(arr, o, i, upto, hist){
+  for (let j=0;j<M;j++) arr[o+j] = FLOOR[j];
+  const pk = []; let tr = 0;
+  for (let p=0; p<upto; p++){
+    const P = passes[p], A = P.A[i];
+    if (A > 1e-5) tr += fillBead(arr, o, A, P.U[i]/A, P.W[i]/A, P.C[i]/A, pk);
+    if (hist) hist.push(arr.slice(o, o + M));
+  }
+  return tr;
+}
+const F32 = n => new Float32Array(n);
+const D = {Lb:F32(N), Lw:F32(N), size:F32(N), cvx:F32(N), W:F32(N), A:F32(N), rein:F32(N), ufill:F32(N), notch:F32(N),
+           rprot:F32(N), jA:new Int16Array(N).fill(-1), jB:new Int16Array(N).fill(-1), lastPass:new Int8Array(N), rp:F32(N),
+           C:F32(N), pen:F32(N), b:F32(N), inc:F32(N), por:F32(N), uc:F32(N), cold:F32(N), lof:F32(N), burn:F32(N)};
+function measure(i){
+  const o = i*M; let jA = -1, jB = -1, area = 0;
+  for (let j=0;j<M;j++){ const d = SURF[o+j] - FLOOR[j]; if (d > 0.004){ if (jA < 0) jA = j; jB = j; area += d*DU; } }
+  D.jA[i] = jA; D.jB[i] = jB; D.A[i] = area;
+  if (jA < 0){ D.Lb[i] = D.Lw[i] = D.size[i] = D.cvx[i] = D.W[i] = 0; D.rein[i] = D.ufill[i] = -T; return; }
+  if (isGr()){
+    let mx = -9, mn = 9;
+    for (let j=jA;j<=jB;j++) mx = Math.max(mx, SURF[o+j] - T);
+    for (let j=0;j<M;j++) if (Math.abs(uAt(j)) <= G_TOPH) mn = Math.min(mn, SURF[o+j] - T);
+    D.rein[i] = mx; D.ufill[i] = mn; D.Lb[i] = D.Lw[i] = Math.min(0.4, Math.sqrt(area)); D.W[i] = (jB - jA)*DU;
+    return;
+  }
+  const uR = uAt(jA), uL = uAt(jB);
+  D.Lb[i] = Math.max(0, uR)*Math.SQRT2; D.Lw[i] = Math.max(0, -uL)*Math.SQRT2;
+  // effective fillet size: the largest equal-leg fillet whose face fits inside the weld
+  let size = 0;
+  for (let Ls = 0.02; Ls < 1.0; Ls += 0.005){
+    const hh = Ls*S2; let ok = true;
+    for (let j=0;j<M;j++){ if (Math.abs(uAt(j)) <= hh && SURF[o+j] < hh - 0.002){ ok = false; break; } }
+    if (ok) size = Ls; else break;
+  }
+  D.size[i] = size;
+  // convexity: largest distance from the face to the straight line joining the toes
+  const hA = SURF[o+jA], hB = SURF[o+jB], du = uL - uR, dh = hB - hA, ln = Math.hypot(du, dh) || 1;
+  let cv = 0;
+  for (let j=jA;j<=jB;j++){ const d = -(du*(SURF[o+j] - hA) - dh*(uAt(j) - uR))/ln; if (d > cv) cv = d; }
+  D.cvx[i] = cv; D.W[i] = ln;
+}
+function derive(){
+  for (let i=0;i<N;i++){
+    if (dirty[i]){
+      D.notch[i] = clamp(replayInto(SURF, i*M, i, passes.length)*0.6, 0, 1); measure(i); dirty[i] = 0;
+      let lp = 0; for (let p=0;p<passes.length;p++) if (passes[p].A[i] > 0.002) lp = p + 1; D.lastPass[i] = lp;
+    }
+    const bn = bins[i];
+    D.rp[i] = bn.rv > 0 ? bn.rp/bn.rv : 0; D.rprot[i] = bn.rpv > 0 ? bn.rprot/bn.rpv : 0;
+    if (bn.vol < 1e-7){ D.pen[i]=D.b[i]=D.C[i]=0; D.por[i]=D.uc[i]=D.cold[i]=D.lof[i]=D.inc[i]=D.burn[i]=0; continue; }
+    const w = bn.vol;
+    D.pen[i]=bn.pen/w; D.b[i]=bn.b/w; D.C[i]=bn.c/w; D.por[i]=bn.por/w; D.uc[i]=bn.uc/w; D.cold[i]=bn.cold/w; D.burn[i]=bn.burn/w;
+    D.lof[i] = Math.min(1, bn.lof/w + D.notch[i]*0.8); D.inc[i] = Math.min(1, bn.inc/w + (isS() ? D.notch[i]*0.8 : 0));
+    if (bn.ucx > D.uc[i]) D.uc[i] = Math.min(1, bn.ucx);
+  }
+}
+const binX = i => X0 + (i+0.5)*DX;
+const _pp = {z:0,y:0,nz:0,ny:0};
+function surfH(i, u){ const f = (U_MAX - u)/DU, j = clamp(Math.floor(f), 0, M-2), t = clamp(f - j, 0, 1); return Math.max(floorF(u), SURF[i*M+j]*(1-t) + SURF[i*M+j+1]*t); }
+function profilePoint(i, s){
+  const jA = D.jA[i], jB = D.jB[i]; let u, h;
+  if (jA < 0){ u = 0; h = floorF(0) + 0.002; }
+  else { const f = jA + s*(jB - jA), j = Math.min(M-2, Math.floor(f)), t = f - j; u = uAt(j) - t*DU; h = SURF[i*M+j]*(1-t) + SURF[i*M+j+1]*t + 0.002; }
+  const q = toLocal(u, h), n = jointN(); _pp.y = q.y; _pp.z = q.z; _pp.ny = n.y; _pp.nz = n.z; return _pp;
+}
+let beadDirty = true;
+const DR = new Float32Array(N);
+function dabRip(x){
+  const f = (x - X0)/DX - 0.5, i = Math.floor(f), t = f - i;
+  const a = DR[clamp(i,0,N-1)], b = DR[clamp(i+1,0,N-1)];
+  return 2*(a + (b-a)*t) - 1;
+}
+function computeDabRipples(){
+  DR.fill(0);
+  const ds = state.dabs;
+  for (let k=0;k<ds.length;k++){
+    const xd = ds[k], i0 = Math.max(0, Math.floor((xd - 0.2 - X0)/DX)), i1 = Math.min(N-1, Math.ceil((xd + 0.06 - X0)/DX));
+    for (let i=i0;i<=i1;i++){ const u = binX(i) - xd, g = u < 0 ? Math.exp(u/0.05) : Math.exp(-u/0.012); if (g > DR[i]) DR[i] = g; }
+  }
+}
+function tigTint(h, ox, edge, out){
+  const sv = [0.17,0.175,0.19], straw = [0.27,0.17,0.05], blue = [0.06,0.085,0.24], gray = [0.06,0.06,0.06];
+  const w1 = clamp((h-0.7)/0.3,0,1), w2 = clamp((h-1.05)/0.25,0,1), w3 = Math.max(clamp((h-1.3)/0.3,0,1), clamp(ox,0,1));
+  for (let c=0;c<3;c++){ let v = lerp(sv[c], straw[c], w1); v = lerp(v, blue[c], w2); v = lerp(v, gray[c], w3); out[c] = lerp(sv[c], v, 0.12 + 0.88*edge); }
+  return out;
+}
+const _tc = [0,0,0], _wv2 = new THREE.Vector3();
+function updateBead(){
+  derive();
+  if (RIP.mode === 'dabs') computeDabRipples();
+  const tg = isT();
+  for (let i=0;i<N;i++){
+    const o = i*M, x = binX(i), jA = D.jA[i], jB = D.jB[i], bn = bins[i], t = bn.temp;
+    const uc = jA >= 0 ? (uAt(jA) + uAt(jB))/2 : 0, hw = jA >= 0 ? Math.max(0.02, (jB - jA)*DU/2) : 0.1;
+    const th = tg && bn.vol > 1e-7 ? bn.h/bn.vol : 0, ox = tg && bn.vol > 1e-7 ? bn.ox/bn.vol : 0;
+    for (let j=0;j<M;j++){
+      const k = o + j, u = uAt(j), f = FLOOR[j], s0 = SURF[k];
+      let hv;
+      if (s0 > f + 0.003){
+        const q = clamp((u - uc)/hw, -1, 1), sn = Math.sqrt(Math.max(0, 1 - q*q));
+        const ra = RIP.A*clamp((s0 - f)/0.05, 0, 1);
+        const rv = RIP.mode === 'dabs' ? dabRip(x - 0.045*sn) : Math.sin(2*Math.PI*(x - 0.05*sn)/RIP.L);
+        hv = s0 + ra*sn*rv + 0.002;
+        if (tg && bn.vol > 1e-7){ tigTint(th, ox, q*q, _tc); bCol[k*3]=_tc[0]; bCol[k*3+1]=_tc[1]; bCol[k*3+2]=_tc[2]; }
+      } else hv = f - 0.006;
+      const q2 = toLocal(u, hv);
+      if (isPipe()){ _wv2.set(x, q2.y, q2.z); bendPos(_wv2); bPos[k*3] = _wv2.x; bPos[k*3+1] = _wv2.y; bPos[k*3+2] = _wv2.z; }
+      else { bPos[k*3+1] = q2.y; bPos[k*3+2] = q2.z; }
+      bHeat[k] = t;
+    }
+  }
+  if (tg) beadGeo.attributes.color.needsUpdate = true;
+  beadGeo.attributes.position.needsUpdate = true;
+  beadGeo.attributes.heat.needsUpdate = true;
+  beadGeo.computeVertexNormals();
+  updateUndercut(); updatePores(); updateCracks();
+  if (slag.visible) updateSlag();
+}
+function updateSlag(){
+  const th = spec().slag, patchy = state.rod === 'E6010';
+  for (let i=0;i<N;i++){
+    const bn = bins[i], o = i*M, on = !!bn.slag;
+    for (let j=0;j<M;j++){
+      const k = o + j, s0 = SURF[k], f = FLOOR[j], weld = s0 > f + 0.003;
+      const keep = on && weld && (!patchy || Math.sin(i*1.37 + j*2.11) + Math.sin(i*0.31) > -0.6);
+      const hv = keep ? s0 + th*0.9 + 0.004 : (weld ? s0 - 0.006 : f - 0.008);
+      const q = toLocal(uAt(j), hv);
+      if (isPipe()){ _wv2.set(binX(i), q.y, q.z); bendPos(_wv2); sPos[k*3] = _wv2.x; sPos[k*3+1] = _wv2.y; sPos[k*3+2] = _wv2.z; }
+      else { sPos[k*3] = bPos[k*3]; sPos[k*3+1] = q.y; sPos[k*3+2] = q.z; }
+      sHeat[k] = bn.temp;
+    }
+  }
+  slagGeo.attributes.position.needsUpdate = true; slagGeo.attributes.heat.needsUpdate = true;
+  slagGeo.computeVertexNormals();
+}
+
+// undercut grooves, pores, cracks (instanced)
+const dummy = new THREE.Object3D();
+const bendDummy = () => { if (isPipe()){ const th = thetaAt(dummy.position.x); bendPos(dummy.position); dummy.quaternion.premultiply(bendQuat(th)); } };
+const ucMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({color:0x15171a, roughness:0.9}), N*2);
+ucMesh.frustumCulled = false; coupon.add(ucMesh);
+function toePoint(i, end){
+  const j = end ? D.jB[i] : D.jA[i], u = uAt(j) - (end ? 1 : -1)*DU*0.6;
+  return toLocal(u, floorF(u) + 0.004);
+}
+function updateUndercut(){
+  const pn = posN();
+  for (let i=0;i<N;i++){
+    const has = D.jA[i] >= 0 && D.uc[i] > 0.35 && (!isGr() || D.ufill[i] >= -0.02);
+    for (let e=0;e<2;e++){
+      const show = has && (isGr() || pn === 1 || pn === 3 || e === 1);    // 2F/4F: undercut sits at the upper (web) toe
+      dummy.quaternion.identity();
+      if (show){ const q = toePoint(i, e); dummy.position.set(binX(i), q.y, q.z); dummy.scale.set(DX*1.15, 0.014, 0.014); bendDummy(); }
+      else dummy.scale.set(0,0,0);
+      dummy.updateMatrix(); ucMesh.setMatrixAt(i*2+e, dummy.matrix);
+    }
+  }
+  ucMesh.instanceMatrix.needsUpdate = true;
+}
+const crackMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color:0x050505}), N*2);
+crackMesh.count = 0; crackMesh.frustumCulled = false; coupon.add(crackMesh);
+const _ca = new THREE.Vector3(), _cb = new THREE.Vector3(), _cz = new THREE.Vector3(0,0,1);
+function updateCracks(){
+  let n = 0;
+  for (let i=0;i<N;i++){
+    if (!bins[i].crack || D.jA[i] < 0) continue;
+    let q = profilePoint(i, 0.15); _ca.set(binX(i), q.y, q.z);
+    q = profilePoint(i, 0.85); _cb.set(binX(i), q.y, q.z);
+    const len = _ca.distanceTo(_cb); q = profilePoint(i, 0.5);
+    dummy.position.set(binX(i), q.y + q.ny*0.004, q.z + q.nz*0.004);
+    const cpos = dummy.position.clone();
+    dummy.quaternion.setFromUnitVectors(_cz, _cb.sub(_ca).normalize()); dummy.scale.set(0.007, 0.007, Math.max(0.05, len)); bendDummy();
+    dummy.updateMatrix(); crackMesh.setMatrixAt(n++, dummy.matrix);
+    dummy.position.copy(cpos); dummy.quaternion.identity(); dummy.scale.set(0.07, 0.006, 0.006); bendDummy();
+    dummy.updateMatrix(); crackMesh.setMatrixAt(n++, dummy.matrix);
+  }
+  crackMesh.count = n; crackMesh.instanceMatrix.needsUpdate = true;
+}
+const MAXPORE = 400;
+const pores = [];
+const poreMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,8), new THREE.MeshStandardMaterial({color:0x0c0c0d, roughness:0.8}), MAXPORE);
+poreMesh.count = 0; poreMesh.frustumCulled = false; coupon.add(poreMesh);
+const poreVisible = pr => pr.pass >= D.lastPass[pr.i];     // buried pores belong to the macro-etch only
+function updatePores(){
+  let n = 0;
+  for (const pr of pores){
+    if (!poreVisible(pr)) continue;
+    const q = profilePoint(pr.i, pr.s);
+    dummy.quaternion.identity();
+    dummy.position.set(binX(pr.i)+pr.dx, q.y - q.ny*pr.r*0.35, q.z - q.nz*pr.r*0.35);
+    dummy.scale.setScalar(pr.r); bendDummy(); dummy.updateMatrix(); poreMesh.setMatrixAt(n++, dummy.matrix);
+  }
+  poreMesh.count = n; poreMesh.instanceMatrix.needsUpdate = true;
+}
+const MAXSPAT = 320;
+let spatN = 0;
+const spatMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,6), new THREE.MeshStandardMaterial({color:0x50555c, metalness:0.7, roughness:0.45}), MAXSPAT);
+spatMesh.count = 0; spatMesh.castShadow = true; spatMesh.frustumCulled = false; coupon.add(spatMesh);
+function addSpatter(x,y,z){
+  if (spatN >= MAXSPAT) return;
+  const r = rand(0.008, 0.024);
+  dummy.position.set(x, y + r*0.4, z); dummy.scale.set(r, r*0.7, r); dummy.updateMatrix();
+  spatMesh.setMatrixAt(spatN++, dummy.matrix); spatMesh.count = spatN; spatMesh.instanceMatrix.needsUpdate = true;
+  state.spatter++;
+}
+
+// ---------- Torch ----------
+const torch = new THREE.Group(); coupon.add(torch);
+const torchInner = new THREE.Group(); torch.add(torchInner);
+let cableAnchor = new THREE.Object3D();
+(function buildTorch(){
+  const copper = new THREE.MeshStandardMaterial({color:0xc58050, metalness:0.9, roughness:0.28, side:THREE.DoubleSide});
+  const brass = new THREE.MeshStandardMaterial({color:0xb79a52, metalness:0.9, roughness:0.3});
+  const black = new THREE.MeshStandardMaterial({color:0x141518, metalness:0.1, roughness:0.55});
+  const steel = new THREE.MeshStandardMaterial({color:0x9aa0a6, metalness:0.85, roughness:0.3});
+  const add = (m, cast=true) => { m.castShadow = cast; torchInner.add(m); return m; };
+  const nz = add(new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.25, 1.1, 28, 1, true), copper)); nz.position.y = 0.55;
+  const inside = add(new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.235, 1.0, 20, 1, true), new THREE.MeshStandardMaterial({color:0x2a1a10, side:THREE.BackSide, roughness:0.8})), false); inside.position.y = 0.52;
+  const tip = add(new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.6, 12), copper)); tip.position.y = 0.32;
+  const ins = add(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 24), black)); ins.position.y = 1.2;
+  const neckCurve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,1.3,0), new THREE.Vector3(0,2.8,0), new THREE.Vector3(1.0,3.7,0));
+  add(new THREE.Mesh(new THREE.TubeGeometry(neckCurve, 24, 0.17, 14), steel));
+  const d = new THREE.Vector3(1.0, 0.9, 0).normalize();
+  const handle = add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 3.4, 20), black));
+  handle.position.set(1.0 + d.x*1.7, 3.7 + d.y*1.7, 0); handle.rotation.z = -Math.atan2(d.x, d.y);
+  const grip = add(new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.05, 6, 20), brass));
+  grip.position.set(1.0 + d.x*0.2, 3.7 + d.y*0.2, 0); grip.rotation.set(0, Math.PI/2, -Math.atan2(d.x,d.y)); grip.rotation.order='ZYX';
+  const trig = add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.75, 0.18), new THREE.MeshStandardMaterial({color:0xd0d3d8, metalness:0.6, roughness:0.35})));
+  trig.position.set(1.0 + d.x*1.2 + 0.4, 3.7 + d.y*1.2 - 0.45, 0); trig.rotation.z = -Math.atan2(d.x, d.y);
+  cableAnchor.position.set(1.0 + d.x*3.4, 3.7 + d.y*3.4, 0); torchInner.add(cableAnchor);
+})();
+const stinger = new THREE.Group(); torch.add(stinger); stinger.visible = false;
+const stingerAnchor = new THREE.Object3D();
+(function buildStinger(){
+  const copper = new THREE.MeshStandardMaterial({color:0xc58050, metalness:0.85, roughness:0.35});
+  const black = new THREE.MeshStandardMaterial({color:0x17181b, metalness:0.1, roughness:0.6});
+  const red = new THREE.MeshStandardMaterial({color:0x9e1f17, metalness:0.1, roughness:0.5});
+  const add = m => { m.castShadow = true; stinger.add(m); return m; };
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.45), copper)).position.set(0, 0.15, 0);
+  const jaw = add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.4, 0.36), black)); jaw.position.set(0.05, 0.95, 0.32); jaw.rotation.x = -0.25;
+  const d = new THREE.Vector3(0.82, 0.57, 0).normalize(), st = new THREE.Vector3(0.25, 0.45, 0);
+  const collar = add(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.5, 0.6, 20), red));
+  collar.position.copy(st).addScaledVector(d, 0.4); collar.rotation.z = -Math.atan2(d.x, d.y);
+  const handle = add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 4.6, 20), black));
+  handle.position.copy(st).addScaledVector(d, 3.0); handle.rotation.z = -Math.atan2(d.x, d.y);
+  stingerAnchor.position.copy(st).addScaledVector(d, 5.3); stinger.add(stingerAnchor);
+})();
+const tig = new THREE.Group(); torch.add(tig); tig.visible = false;
+const tigAnchor = new THREE.Object3D();
+let tungMat, tungBall;
+(function buildTig(){
+  const cupMat = new THREE.MeshStandardMaterial({color:0xe2a99c, roughness:0.75, metalness:0.0, side:THREE.DoubleSide});
+  const black = new THREE.MeshStandardMaterial({color:0x151619, metalness:0.15, roughness:0.5});
+  tungMat = new THREE.MeshStandardMaterial({color:0xb9bcc2, metalness:0.9, roughness:0.25});
+  const add = m => { m.castShadow = true; tig.add(m); return m; };
+  const cone = add(new THREE.Mesh(new THREE.ConeGeometry(0.047, 0.1, 12), tungMat)); cone.rotation.x = Math.PI; cone.position.y = 0.05;
+  const tung = add(new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.9, 12), tungMat)); tung.position.y = 0.55;
+  tungBall = add(new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), new THREE.MeshStandardMaterial({color:0x3a3530, roughness:0.9})));
+  tungBall.position.y = 0.03; tungBall.visible = false;
+  const cup = add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.23, 0.65, 24, 1, true), cupMat)); cup.position.y = 0.6;
+  const head = add(new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.7, 20), black)); head.position.y = 1.28;
+  const cap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 1.7, 14), black)); cap.position.y = 2.45;
+  const capEnd = add(new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), black)); capEnd.position.y = 3.3;
+  const d = new THREE.Vector3(0.94, 0.34, 0).normalize(), st = new THREE.Vector3(0, 1.28, 0);
+  const handle = add(new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.4, 4.0, 18), black));
+  handle.position.copy(st).addScaledVector(d, 2.4); handle.rotation.z = -Math.atan2(d.x, d.y);
+  tigAnchor.position.copy(st).addScaledVector(d, 4.5); tig.add(tigAnchor);
+})();
+const filler = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 1, 8), new THREE.MeshStandardMaterial({color:0xb9825a, metalness:0.85, roughness:0.3}));
+filler.castShadow = true; filler.visible = false; coupon.add(filler);
+const fillerTip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({color:new THREE.Color(2.4,1.1,0.4)}));
+fillerTip.visible = false; coupon.add(fillerTip);
+const FDIR = new THREE.Vector3(0.9, 0.32, 0.3).normalize(), FTIP = new THREE.Vector3();
+let fillerIn = 0;
+const rodMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1, 12), new THREE.MeshStandardMaterial({color:0x9c9d96, roughness:0.85, metalness:0.05}));
+rodMesh.castShadow = true; rodMesh.visible = false; coupon.add(rodMesh);
+const rodTip = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), new THREE.MeshBasicMaterial({color:new THREE.Color(2.2, 0.9, 0.3)}));
+rodTip.visible = false; coupon.add(rodTip);
+const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1, 6), new THREE.MeshStandardMaterial({color:0xc9a46a, metalness:0.9, roughness:0.3, emissive:0x000000}));
+coupon.add(wire);
+const cableMat = new THREE.MeshStandardMaterial({color:0x101113, roughness:0.75});
+let cable = new THREE.Mesh(new THREE.BufferGeometry(), cableMat); cable.castShadow = true; scene.add(cable);
+let lastCableKey = '';
+function rebuildCable(){
+  const a = new THREE.Vector3(); (isS() ? stingerAnchor : isT() ? tigAnchor : cableAnchor).getWorldPosition(a);
+  const keyStr = state.process + a.x.toFixed(2)+a.y.toFixed(2)+a.z.toFixed(2);
+  if (keyStr === lastCableKey) return; lastCableKey = keyStr;
+  const curve = new THREE.CatmullRomCurve3([a, new THREE.Vector3(a.x-2.5, a.y+1.0, a.z+2.5), new THREE.Vector3(a.x-6.5, a.y-0.5, a.z+5), new THREE.Vector3(-18, 1.5, 12)]);
+  cable.geometry.dispose(); cable.geometry = new THREE.TubeGeometry(curve, 40, 0.24, 8);
+}
+
+// arc & puddle visuals
+const arcGlow = new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW, color:new THREE.Color(0.55,0.75,1.0), blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false, transparent:true}));
+const arcCore = new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW, color:new THREE.Color(4,4,4), blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false, transparent:true}));
+arcGlow.renderOrder = arcCore.renderOrder = 10;
+coupon.add(arcGlow, arcCore);
+const puddle = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), new THREE.MeshBasicMaterial({color:new THREE.Color(2.4,1.25,0.45)}));
+coupon.add(puddle);
+const cutPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), new THREE.MeshBasicMaterial({color:0xff5252, transparent:true, opacity:0.28, side:THREE.DoubleSide, depthWrite:false}));
+cutPlane.rotation.y = Math.PI/2; cutPlane.visible = false; coupon.add(cutPlane);
+const ghost = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.03, 8, 24), new THREE.MeshBasicMaterial({color:0x3ddc84, transparent:true, opacity:0.75}));
+ghost.visible = false; coupon.add(ghost);
+
+// sparks
+const MAXSPK = 700;
+const spkPos = new Float32Array(MAXSPK*3), spkCol = new Float32Array(MAXSPK*3);
+const spkVel = new Float32Array(MAXSPK*3), spkLife = new Float32Array(MAXSPK), spkMax = new Float32Array(MAXSPK);
+for (let i=0;i<MAXSPK;i++) spkPos[i*3+1] = -999;
+const spkGeo = new THREE.BufferGeometry();
+spkGeo.setAttribute('position', new THREE.BufferAttribute(spkPos,3));
+spkGeo.setAttribute('color', new THREE.BufferAttribute(spkCol,3));
+const sparks = new THREE.Points(spkGeo, new THREE.PointsMaterial({size:0.07, map:GLOW, vertexColors:true, blending:THREE.AdditiveBlending, depthWrite:false, transparent:true}));
+sparks.frustumCulled = false; coupon.add(sparks);
+let spkHead = 0;
+const _sv = new THREE.Vector3(), _sp = new THREE.Vector3();
+function spawnSpark(p, sf, drop){
+  const i = spkHead; spkHead = (spkHead+1) % MAXSPK;
+  const sp = drop ? rand(1, 4) : rand(25, 70) * (1 + sf*0.6);
+  const th = rand(0, Math.PI*2), up = rand(0.15, 1);
+  let vx = Math.cos(th)*Math.sqrt(1-up*up), vz = Math.abs(Math.sin(th))*Math.sqrt(1-up*up) + 0.25, vy = up;
+  _sv.set(vx*sp, vy*sp, vz*sp); _sp.copy(p);
+  if (isPipe()){ _sv.applyQuaternion(bendQuat(thetaAt(p.x))); bendPos(_sp); }
+  spkPos[i*3]=_sp.x; spkPos[i*3+1]=_sp.y; spkPos[i*3+2]=_sp.z;
+  spkVel[i*3]=_sv.x; spkVel[i*3+1]=_sv.y; spkVel[i*3+2]=_sv.z;
+  spkMax[i] = spkLife[i] = drop ? rand(0.8, 1.4) : rand(0.25, 0.9);
+}
+function updateSparks(dt, sf){
+  for (let i=0;i<MAXSPK;i++){
+    if (spkLife[i] <= 0) continue;
+    spkLife[i] -= dt;
+    const k=i*3;
+    if (spkLife[i] <= 0){ spkPos[k+1] = -999; spkCol[k]=spkCol[k+1]=spkCol[k+2]=0; continue; }
+    const py = spkPos[k+1];
+    spkVel[k] += GL.x*260*dt; spkVel[k+1] += GL.y*260*dt; spkVel[k+2] += GL.z*260*dt;
+    spkPos[k] += spkVel[k]*dt; spkPos[k+1] += spkVel[k+1]*dt; spkPos[k+2] += spkVel[k+2]*dt;
+    const x=spkPos[k], z=spkPos[k+2];
+    const onPlate = !isPipe() && Math.abs(x) < PL/2 && Math.abs(z) < 3 && (!isGr() || Math.abs(z) > G_TOPH);
+    const floorY = onPlate ? T : -50;
+    if (spkPos[k+1] < floorY && py >= floorY - 0.01){
+      spkPos[k+1] = floorY; spkVel[k+1] *= -0.3; spkVel[k] *= 0.55; spkVel[k+2] *= 0.55;
+      spkLife[i] *= 0.7;
+      if (onPlate && sf > 0.22 && Math.random() < sf*0.07) { addSpatter(x, T, z); spkLife[i] = 0.001; }
+    }
+    if (!isGr() && !isPipe() && Math.abs(x) < PL/2 && spkPos[k+1] > T && spkPos[k+1] < T+4 && z < T/2 && z > -T/2){ spkPos[k+2] = T/2; spkVel[k+2] *= -0.4; }
+    const f = spkLife[i]/spkMax[i];
+    spkCol[k] = 1.4*f + 0.2; spkCol[k+1] = (0.75*f + 0.15)*f; spkCol[k+2] = 0.35*f*f*f;
+  }
+  spkGeo.attributes.position.needsUpdate = true; spkGeo.attributes.color.needsUpdate = true;
+}
+
+// fume
+const smoke = [];
+for (let i=0;i<26;i++){
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW, color:0x8c9096, transparent:true, opacity:0, depthWrite:false}));
+  s.userData = {age:9, life:3}; scene.add(s); smoke.push(s);
+}
+let smokeT = 0, smokeHead = 0;
+
+// ---------- Camera ----------
+const FCENTER = new THREE.Vector3(0, 0.75, 0.55), GCENTER = new THREE.Vector3(0, 0.45, 0.35), _cv = new THREE.Vector3(), _nv = new THREE.Vector3();
+function presetPipe(k){
+  let {theta, phi, r} = POSCAM[state.pos];
+  if ((state.pos === 'P5G' || state.pos === 'P6G') && state.seg === 1) theta = Math.PI - theta;   // far half: walk around
+  if (state.pos === 'P2G' && state.seg === 1) theta = -theta;
+  if (k == 2){ phi += 0.2; r *= 0.85; }
+  if (k == 3){ theta += 0.6; r *= 0.85; }
+  if (isS() && k !== 'insp' && state.phase !== 'setup') r *= 1.5;
+  r *= 0.5 + 0.5*PIPE.Ro/3.3; if (k === 'insp') r *= 0.7;
+  coupon.updateMatrixWorld(true);
+  const c = _cv.set(0, 0, 0);
+  if (state.pos === 'P1G') c.set(PIPE.Ro*Math.sin(TH_WELD), -PIPE.Ro*Math.cos(TH_WELD), 0).applyQuaternion(baseQ).add(coupon.position);
+  else coupon.localToWorld(c);
+  return {theta, phi, r, tx:c.x, ty:c.y, tz:c.z};
+}
+function presetFor(k){
+  if (isPipe()) return presetPipe(k);
+  const P = POSCAM[state.pos]; let {theta, phi, r} = P;
+  if (k == 2){ theta *= 0.2; phi += phi > 1.57 ? -0.2 : 0.2; r *= 0.82; }
+  if (k == 3){ theta += 0.75; r *= 0.75; }
+  if (k === 'insp'){ theta += 0.12; r *= 0.96; }
+  const c = _cv.copy(isGr() ? GCENTER : FCENTER);
+  const SMO = {1:[-1.0,1.6], 2:[-1.15,1.75], 3:[-0.5,1.45], 4:[-0.9,1.6]}[posN()];
+  if (isS() && k !== 'insp' && state.phase !== 'setup'){ theta += SMO[0]; r *= SMO[1]; c.addScaledVector(jointN(), 1.4); }
+  coupon.updateMatrixWorld(true); coupon.localToWorld(c);
+  return {theta, phi, r, tx:c.x, ty:c.y, tz:c.z};
+}
+const cam = presetFor(1), camGoal = presetFor(1);
+let camFollow = false;
+function setPreset(k){ Object.assign(camGoal, presetFor(k)); camFollow = isPipe() && (k == 1) && state.phase !== 'setup' && state.phase !== 'inspect'; }
+// Pipe: the camera rides around the joint with the arc, from the welder's side.
+const _fa = new THREE.Vector3(), _fn = new THREE.Vector3(), _fx = new THREE.Vector3(), _fd = new THREE.Vector3();
+function followGoal(){
+  coupon.updateMatrixWorld(true);
+  const th = thetaAt(state.x);
+  _fa.set(state.x, T, 0); bendPos(_fa); coupon.localToWorld(_fa);
+  _fn.set(Math.sin(th), -Math.cos(th), 0).applyQuaternion(coupon.quaternion);
+  _fx.set(0, 0, -1).applyQuaternion(coupon.quaternion);
+  if (_fx.dot(_fd.set(0.4, 0.6, 1)) < 0) _fx.negate();
+  if (state.pos === 'P2G') _fd.copy(_fn).addScaledVector(_fx, 0.45).normalize();          // vertical pipe: look across the joint, slightly from above
+  else _fd.copy(_fn).multiplyScalar(0.6).addScaledVector(_fx, 1.0).add(_fx.set(0, 0.3, 0)).normalize();
+  const r = (isS() ? 15 : 11.5)*(0.6 + 0.4*PIPE.Ro/3.3);
+  let cy = _fa.y + _fd.y*r; if (cy < 0.9){ _fd.y += (0.9 - cy)/r; _fd.normalize(); }
+  camGoal.tx = _fa.x; camGoal.ty = _fa.y; camGoal.tz = _fa.z; camGoal.r = r;
+  camGoal.phi = Math.acos(clamp(_fd.y, -1, 1));
+  let th2 = Math.atan2(_fd.x, _fd.z); while (th2 - cam.theta > Math.PI) th2 -= 2*Math.PI; while (th2 - cam.theta < -Math.PI) th2 += 2*Math.PI;
+  camGoal.theta = th2;
+}
+function updateCamera(dt){
+  // Fixed pipe: the view holds still while the arc is on (so the mouse maps cleanly), and moves to the new spot
+  // when you stop. Like a welder repositioning around the pipe between stops.
+  if (camFollow && isPipe() && (state.phase === 'weld' || state.phase === 'chip') && (!state.arc || state.pos === 'P1G')) followGoal();
+  const t = 1 - Math.exp(-dt*6);
+  for (const k in camGoal) cam[k] = lerp(cam[k], camGoal[k], t);
+  const sp = Math.sin(cam.phi);
+  camera.position.set(cam.tx + cam.r*sp*Math.sin(cam.theta), cam.ty + cam.r*Math.cos(cam.phi), cam.tz + cam.r*sp*Math.cos(cam.theta));
+  camera.lookAt(cam.tx, cam.ty, cam.tz);
+  const off = state.phase === 'inspect' && W > 900 ? 212 : 0;
+  if (off) camera.setViewOffset(W, H, off, 0, W, H); else if (camera.view && camera.view.enabled) camera.clearViewOffset();
+}
+
+// ---------- Input ----------
+const keys = {};
+const mouse = {x:innerWidth*0.3, y:innerHeight*0.5, orbit:false, lx:0, ly:0};
+let W = innerWidth, H = innerHeight;
+function resize(){
+  W = innerWidth; H = innerHeight;
+  renderer.setSize(W, H, false); camera.aspect = W/H; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+addEventListener('pointermove', e => {
+  if (mouse.orbit){
+    camFollow = false;
+    camGoal.theta -= (e.clientX - mouse.lx)*0.006;
+    camGoal.phi = clamp(camGoal.phi - (e.clientY - mouse.ly)*0.005, 0.25, 2.9);
+    mouse.lx = e.clientX; mouse.ly = e.clientY;
+    return;
+  }
+  if (kb.on && Math.hypot(e.clientX - mouse.x, e.clientY - mouse.y) > 4) kb.on = false;
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  if (chipping && state.phase === 'chip' && performance.now() - lastChip > 85){ lastChip = performance.now(); chipAt(e.clientX, e.clientY); }
+});
+let chipping = false, lastChip = 0;
+// arrow-key steering: Left/Right = travel, Up/Down = farther/closer
+const kb = {on:false, x:0, d:0};
+const ARROWS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
+function kbStart(){
+  if (kb.on) return;
+  kb.on = true; kb.x = state.x;
+  mapMouse();
+  const vert = !isPipe() && Math.abs(mapB.shy) > Math.abs(mapB.shx);
+  const tKeys = isPipe() ? '→' : vert ? (mapB.shy < 0 ? '↑' : '↓') : (mapB.shx > 0 ? '→' : '←');
+  const cKey = isPipe() ? '↓' : vert ? (mapB.ax > 0 ? '←' : '→') : (mapB.ay < 0 ? '↓' : '↑');
+  toast(`Keyboard steering: ${tKeys} travels toward STOP · ${cKey} moves closer${isS() ? ' (feed the rod)' : ''}`, 'good', 'kbmap', 15000);
+  kb.d = isG() ? state.ctwd : isS() ? state.arcLen - 0.06*(ROD_LEN - state.rodLen) : state.arcLen;
+}
+canvas.addEventListener('pointerdown', e => {
+  if (e.button === 0 && state.phase === 'weld'){ state.trigger = true; e.preventDefault(); }
+  if (e.button === 0 && state.phase === 'chip'){ chipping = true; lastChip = performance.now(); chipAt(e.clientX, e.clientY); }
+  if (e.button === 2 || e.button === 1){
+    if (!state.arc){ mouse.orbit = true; mouse.lx = e.clientX; mouse.ly = e.clientY; }
+    e.preventDefault();
+  }
+});
+addEventListener('pointerup', e => {
+  if (e.button === 0){ state.trigger = keys['Space'] || false; chipping = false; }
+  if (e.button === 2 || e.button === 1) mouse.orbit = false;
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('wheel', e => {
+  if (isT() && state.phase === 'weld'){ state.pedal = clamp(state.pedal - e.deltaY*0.0006, 0, 1); e.preventDefault(); return; }
+  if (state.arc) return;
+  camGoal.r = clamp(camGoal.r * (1 + e.deltaY*0.001), 3.5, 24); e.preventDefault();
+}, {passive:false});
+addEventListener('blur', () => { state.trigger = false; for (const k in keys) keys[k] = false; });
+addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return;
+  keys[e.code] = true;
+  if (ARROWS.includes(e.code) && (state.phase === 'weld' || state.phase === 'paused')){ e.preventDefault(); if (state.phase === 'weld') kbStart(); }
+  if (state.phase === 'weld'){
+    if (e.code === 'Space'){ state.trigger = true; e.preventDefault(); }
+    if (e.code === 'Escape') pauseGame();
+    if (e.code === 'Enter') finishWeld();
+    if (e.code === 'KeyN') nextPass();
+    if (e.code === 'KeyV' && isPipe() && SEGS.length > 1 && !state.arc){
+      state.seg = 1 - state.seg; state.x = state.prevX = seg().a; kb.on = false; state.firstArc = false;
+      setPreset(1); toast(state.seg ? 'Walked around to the far side: weld this half from the bottom up' : 'Back on the near side', 'good', 'walk');
+    }
+    if (e.code === 'KeyG' && isT() && !state.arc && state.contam && state.grind <= 0){
+      state.grind = 1.6; toast('Grinding the tungsten to a fresh point…', 'good', 'grind');
+    }
+    if (e.code === 'KeyR' && isS() && !state.arc){
+      state.rodLen = ROD_LEN; state.rodChanges++;
+      toast('Fresh rod in the stinger. Bring the cursor back up to the joint line.', 'good', 'rod');
+    }
+    if (e.code === 'KeyH'){ state.helmet = !state.helmet; $('#helmetChk').checked = state.helmet; toast(state.helmet ? 'Helmet down' : 'Helmet UP: never strike an arc without your lens!', state.helmet ? 'good' : 'bad', 'helm'); }
+  } else if (state.phase === 'paused' && e.code === 'Escape') resumeGame();
+  if (['Digit1','Digit2','Digit3'].includes(e.code) && state.phase !== 'setup') setPreset(+e.code.slice(-1));
+});
+addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'Space') state.trigger = false; });
+
+const _v = new THREE.Vector3();
+// points are in coupon-local coordinates
+function toScreen(x,y,z){ _v.set(x,y,z); bendPos(_v); coupon.localToWorld(_v); _v.project(camera); return {x:(_v.x+1)/2*W, y:(1-_v.y)/2*H}; }
+const mapB = {shx:1, shy:0, ax:0, ay:-1};
+const distOut = (d, ppi) => ({ct: clamp(0.5 + (d/ppi)*0.5, 0.05, 1.6),
+  al: isT() ? clamp(0.1 + 0.2*(d/ppi), -0.1, 1.5) : clamp(0.125 + 0.3*(d/ppi) + 0.06*(ROD_LEN - state.rodLen), -0.1, 1.5)});
+// Pipe: the joint curves, so the cursor is mapped against the joint right where the torch is.
+// Fixed pipe: the torch slides along the joint toward the cursor. Rolled pipe: dragging rolls the pipe.
+function mapPipe(){
+  const ya = aimY(), za = aimZ(), xc = state.x;
+  const s0 = toScreen(xc - 0.25, ya, za), s1 = toScreen(xc + 0.25, ya, za), c0 = toScreen(xc, ya, za), c1 = toScreen(xc, ya + 1, za);
+  const sx = s1.x - s0.x, sy = s1.y - s0.y, len = Math.hypot(sx, sy) || 1, ppi = len/0.5;
+  let ax = c1.x - c0.x, ay = c1.y - c0.y, an = Math.hypot(ax, ay);
+  if (an < 0.15*ppi){ ax = -sy; ay = sx; if (ay > 0){ ax = -ax; ay = -ay; } an = Math.hypot(ax, ay) || 1; }
+  ax /= an; ay /= an;
+  Object.assign(mapB, {shx:sx/len, shy:sy/len, ax, ay});
+  const mx = mouse.x - c0.x, my = mouse.y - c0.y, det = sx*ay - sy*ax;
+  let t = 0, d = 0;
+  if (Math.abs(det) > 1e-3){ t = (mx*ay - my*ax)/det; d = (sx*my - sy*mx)/det; }
+  let x;
+  if (state.pos === 'P1G'){
+    const dmx = mouse.x - (mouse.px ?? mouse.x), dmy = mouse.y - (mouse.py ?? mouse.y);
+    x = xc + (state.trigger ? (dmx*mapB.shx + dmy*mapB.shy)/ppi : 0);
+  } else x = xc + clamp(t*0.5, -1.2, 1.2);
+  mouse.px = mouse.x; mouse.py = mouse.y;
+  const sg = seg();
+  return Object.assign({x: clamp(x, Math.min(sg.a, sg.b) - 0.3, Math.max(sg.a, sg.b) + 0.3)}, distOut(d, ppi));
+}
+function mapMouse(){
+  if (isPipe()) return mapPipe();
+  const ya = aimY(), za = aimZ(), n = jointN();
+  const s0 = toScreen(X0,ya,za), s1 = toScreen(X1,ya,za);
+  const sx = s1.x-s0.x, sy = s1.y-s0.y, len = Math.hypot(sx,sy) || 1, ppi = len / L;
+  // "away from the work" direction = the joint's outward normal, as seen on screen
+  const c0 = toScreen(0, ya, za), c1 = toScreen(n.x, ya + n.y, za + n.z);
+  let ax = c1.x - c0.x, ay = c1.y - c0.y, an = Math.hypot(ax, ay);
+  if (an < 0.15*ppi){ ax = -sy; ay = sx; if (ay > 0){ ax = -ax; ay = -ay; } an = Math.hypot(ax, ay) || 1; }
+  ax /= an; ay /= an;
+  Object.assign(mapB, {shx:sx/len, shy:sy/len, ax, ay});
+  const mx = mouse.x - s0.x, my = mouse.y - s0.y;
+  // decompose the cursor into travel (along the joint) + distance (along the outward normal)
+  const det = sx*ay - sy*ax;
+  let t, d;
+  if (Math.abs(det) < 1e-3){ t = (mx*sx + my*sy)/(len*len); d = 0; }
+  else { t = (mx*ay - my*ax)/det; d = (sx*my - sy*mx)/det; }
+  return {x: clamp(X0 + t*L, X0-1.6, X1+1.6), ct: clamp(0.5 + (d/ppi)*0.5, 0.05, 1.6),
+          al: isT() ? clamp(0.1 + 0.2*(d/ppi), -0.1, 1.5) : clamp(0.125 + 0.3*(d/ppi) + 0.06*(ROD_LEN - state.rodLen), -0.1, 1.5)};
+}
+
+// ---------- Audio ----------
+let audio = null;
+function initAudio(){
+  if (audio) { audio.ctx.resume && audio.ctx.resume(); return; }
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const sr = ctx.sampleRate, buf = ctx.createBuffer(1, sr*2, sr), d = buf.getChannelData(0);
+    for (let i=0;i<d.length;i++){ let v=(Math.random()*2-1)*0.3; if (Math.random()<0.006) v += (Math.random()*2-1)*2.5; d[i]=v; }
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1100;
+    const g = ctx.createGain(); g.gain.value = 0;
+    const master = ctx.createGain(); master.gain.value = 0.45;
+    src.connect(hp); hp.connect(g); g.connect(master); master.connect(ctx.destination); src.start();
+    const osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 110;
+    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 380;
+    const og = ctx.createGain(); og.gain.value = 0;
+    osc.connect(lp); lp.connect(og); og.connect(master); osc.start();
+    audio = {ctx, g, og, hp};
+  }catch(err){ audio = null; }
+}
+function chipSound(){
+  if (!audio || !state.sound) return;
+  try{
+    const c = audio.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(rand(1800, 2600), t); o.frequency.exponentialRampToValueAtTime(700, t + 0.06);
+    g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.1);
+  }catch(e){}
+}
+function updateAudio(sf){
+  if (!audio) return;
+  const t = audio.ctx.currentTime, on = state.arc && state.sound;
+  let gn = on ? (isT() ? (state.contam ? 0.35 : 0.06) : isS() ? 0.7 : 0.55)*(0.5 + 0.5*Math.random()) : 0;
+  if (on && Math.random() < sf*0.25) gn = 1.4;
+  audio.g.gain.setTargetAtTime(gn, t, 0.008);
+  audio.og.gain.setTargetAtTime(on ? (isT() ? 0.03 + 0.09*state.pedal : 0.05) : 0, t, 0.03);
+  audio.hp.frequency.setTargetAtTime(isS() ? 620 : 900 + (state.volts-18)*90, t, 0.1);
+}
+
+// ---------- Coaching toasts ----------
+const toastTimes = {};
+function toast(msg, cls='', keyName=msg, every=2600){
+  const now = performance.now();
+  if (toastTimes[keyName] && now - toastTimes[keyName] < every) return;
+  toastTimes[keyName] = now;
+  const box = $('#coach');
+  const el = document.createElement('div'); el.className = 'toast ' + cls; el.textContent = msg;
+  box.appendChild(el);
+  while (box.children.length > 3) box.removeChild(box.firstChild);
+  setTimeout(() => { el.style.transition='opacity .4s'; el.style.opacity='0'; setTimeout(()=>el.remove(), 420); }, 2300);
+}
+
+// ---------- Gauges ----------
+let GAUGES = [];
+const ZC = {g:'#2fbf71', y:'#d9a72a', r:'#b8403f'};
+function makeGauges(){
+  const t = targets(), [g0,g1] = t.sg, [y0,y1] = t.sy, sm = isS();
+  return [
+    {id:'spd', label:'Travel speed', min:0, max:sm?20:30, get:()=>state.speed, fmt:v=>v.toFixed(1)+' ipm',
+      zone:v=> v>=g0&&v<=g1?'g' : v>=y0&&v<=y1?'y':'r', tgt:`target ${g0}–${g1} ipm`},
+    (() => { const wi = waIdeal(); return {id:'wa', label:'Work angle', min:wi-45, max:wi+45, get:()=>state.workAngle, fmt:v=>v.toFixed(0)+'°',
+      zone:v=> Math.abs(v-wi)<=5?'g' : Math.abs(v-wi)<=10?'y':'r', tgt: isGr() ? 'target 90° (square to the groove)' : 'target 45° (bisect the joint)'}; })(),
+    isT() ? {id:'ta', label:'Travel angle', min:-30, max:30, get:()=>state.travelAngle, fmt:v=>Math.abs(v).toFixed(0)+'° '+(v>=0?'push':'DRAG'),
+      zone:v=> v>=5&&v<=20?'g' : v>=0&&v<=25?'y':'r', tgt:'target 5–20° push (filler leads)'} :
+    sm ? {id:'ta', label:'Travel angle', min:-30, max:30, get:()=>state.travelAngle, fmt:v=>Math.abs(v).toFixed(0)+'° '+(v<=0?'drag':'PUSH'),
+      zone:v=> v<=-5&&v>=-15?'g' : v<=1&&v>=-20?'y':'r', tgt:'target 5–15° drag (never push stick)'}
+       : {id:'ta', label:'Travel angle', min:-30, max:30, get:()=>state.travelAngle, fmt:v=>Math.abs(v).toFixed(0)+'° '+(v>=0?'push':'drag'),
+      zone:v=>{const a=Math.abs(v); return a>=5&&a<=15?'g' : a<=20?'y':'r';}, tgt:'target 5–15° push or drag'},
+    isT() ? {id:'ct', label:'Arc length', min:0, max:0.4, get:()=>Math.max(0,state.arcLen), fmt:v=>v.toFixed(3)+'″',
+      zone:v=> v>=0.05&&v<=0.13?'g' : v>=0.03&&v<=0.18?'y':'r', tgt:'target ≈ tungsten dia (3/32″)'} :
+    sm ? {id:'ct', label:'Arc length', min:0, max:0.4, get:()=>Math.max(0,state.arcLen), fmt:v=>v.toFixed(3)+'″',
+      zone:v=> v>=0.06&&v<=0.14?'g' : v>=0.04&&v<=0.19?'y':'r', tgt:'target ≈⅛″ (core-wire diameter)'}
+       : {id:'ct', label:'CTWD (stickout)', min:0, max:1.2, get:()=>state.ctwd, fmt:v=>v.toFixed(2)+'″',
+      zone:v=> v>=0.375&&v<=0.625?'g' : v>=0.25&&v<=0.75?'y':'r', tgt:'target ⅜–⅝″'}
+  ].concat(isT() ? [{id:'ht', label:'Puddle heat', min:0, max:1.6, get:()=>state.H,
+      fmt:v=> v<0.6?'cold' : v<0.8?'not wet yet' : v<=1.15?'wet ✓' : v<=1.3?'hot':'TOO HOT',
+      zone:v=> v>=0.8&&v<=1.15?'g' : v>=0.65&&v<=1.3?'y':'r', tgt:'dab when the puddle is wet'}] : []);
+}
+function buildGauges(){
+  GAUGES = makeGauges();
+  const box = $('#gauges'); box.innerHTML = '';
+  GAUGES.forEach(g => {
+    const stops = []; const n = 120;
+    for (let i=0;i<=n;i++){ const v = g.min + (g.max-g.min)*i/n; stops.push(ZC[g.zone(v)] + ' ' + (i/n*100).toFixed(2) + '%'); }
+    const el = document.createElement('div'); el.className = 'g';
+    el.innerHTML = `<div class="row"><span>${g.label}</span><b id="gv_${g.id}">—</b></div><div class="bar" style="background:linear-gradient(90deg,${stops.join(',')})"><div class="nd" id="gn_${g.id}"></div></div><div class="tgt">${g.tgt}</div>`;
+    box.appendChild(el);
+  });
+}
+buildGauges();
+function updateGauges(){
+  GAUGES.forEach(g => {
+    const v = g.get();
+    $('#gv_'+g.id).textContent = g.fmt(v);
+    $('#gv_'+g.id).style.color = ZC[g.zone(v)] === ZC.g ? '#7ef0b0' : ZC[g.zone(v)] === ZC.y ? '#ffd76a' : '#ff8a8a';
+    $('#gn_'+g.id).style.left = (clamp((v-g.min)/(g.max-g.min),0,1)*100) + '%';
+  });
+}
+
+// ---------- Welding physics ----------
+let lastSf = 0;
+function smawConditions(){
+  const E = spec(), al = state.arcLen, ta = state.travelAngle, sp = state.speed*BASEMID.smaw/spMid(), aE = state.amps - recoAmps();
+  const b = clamp((state.workAngle - waIdeal())/45, -1, 1);
+  let c = E.c0 - 0.9*(al - 0.11) - 0.004*aE + 0.15*clamp((5.5-sp)/4,0,1) + (ta > 0 ? -0.05 : 0);
+  c = clamp(c, -0.18, 0.75);
+  const pen = 0.075*E.pen*(state.amps/recoAmps())*Math.sqrt(7.5/Math.max(sp,3))*(1 - 0.8*clamp(al-0.12,0,0.3));
+  let por = 0;
+  if (al > 0.17) por += (al-0.17)/0.08 * (state.rod === 'E7018' ? 1.2 : 0.6);
+  if (ta > 8) por += (ta-8)/20;
+  let uc = state.rod === 'E6010' ? 0.08 : 0;
+  if (aE > 12) uc += (aE-12)/20;
+  if (al > 0.18) uc += (al-0.18)/0.1;
+  if (b > 0.3) uc += (b-0.3)*2.2;
+  if (sp > 11) uc += (sp-11)/6;
+  let cold = 0;
+  if (sp < 4.5) cold += (4.5-sp)/3;
+  if (aE < -15) cold += (-aE-15)/15;
+  if (b < -0.3) cold += (-b-0.3)*2.2;
+  let lof = 0;
+  if (aE < -25) lof += (-aE-25)/15;
+  if (sp > 13) lof += (sp-13)/6;
+  if (pen < 0.035) lof += (0.035-pen)/0.02;
+  let inc = 0;
+  if (ta > 2) inc += (ta-2)/10 * E.inc;
+  if (sp < 4.5) inc += (4.5-sp)/3 * E.inc;
+  if (aE < -20) inc += (-aE-20)/25;
+  const sf = clamp(Math.abs(aE)/30,0,1)*0.45 + clamp((al-0.15)/0.1,0,1)*0.6 + E.sf + clamp(ta/15,0,1)*0.2;
+  return {vErr:0, aE, I:state.amps, b, c, pen, por:clamp(por,0,1), uc:clamp(uc,0,1), cold:clamp(cold,0,1), lof:clamp(lof,0,1), inc:clamp(inc,0,1), sf:clamp(sf,0,1)};
+}
+function gtawConditions(){
+  const H = state.H, al = state.arcLen, ta = state.travelAngle, sp = state.speed*BASEMID.gtaw/spMid(), b = clamp((state.workAngle - waIdeal())/45, -1, 1);
+  const Ia = state.tigMax*state.pedal;
+  const c = clamp(0.32 - 0.45*(H-1), -0.18, 0.75);
+  const pen = 0.06*(Ia/tigIdeal())*Math.sqrt(5/Math.max(sp,1.5))*(1 - 0.8*clamp(al-0.13,0,0.3));
+  let por = 0;
+  if (state.argon < 12) por += (12-state.argon)/7;
+  if (state.argon > 35) por += (state.argon-35)/12;
+  if (al > 0.2) por += (al-0.2)/0.1;
+  let uc = 0; if (H > 1.25) uc += (H-1.25)/0.3; if (b > 0.3) uc += (b-0.3)*2.2;
+  let cold = 0; if (H < 0.8) cold += (0.8-H)/0.3; if (b < -0.3) cold += (-b-0.3)*2.2;
+  let lof = 0; if (H < 0.6) lof += (0.6-H)/0.25; if (pen < 0.03) lof += (0.03-pen)/0.02;
+  const inc = state.contam ? 1 : 0;
+  const ox = Math.max(state.argon < 12 ? (12-state.argon)/10 : 0, H > 1.3 ? (H-1.3)/0.4 : 0);
+  return {vErr:0, aE:0, I:Ia, b, c, pen, por:clamp(por,0,1), uc:clamp(uc,0,1), cold:clamp(cold,0,1), lof:clamp(lof,0,1), inc, ox:clamp(ox,0,1), h:H, sf: state.contam ? 0.3 : 0};
+}
+function heatIdx(){
+  const spT = spMid(), sp = Math.max(state.speed, spT*0.25);
+  if (isT()) return state.H;
+  if (isS()) return (state.amps/recoAmps())*Math.sqrt(spT/sp);
+  return (ampsFor(state.wfs, state.ctwd)/ampsFor(recoWfs(), 0.5))*Math.sqrt(spT/sp);
+}
+// gravity: sag, drips and shape changes out of position
+const _pa = new THREE.Vector3(), _pb = new THREE.Vector3();
+let depClock = 0; const tieT = new Float32Array(N), tieA = new Float32Array(N), tieP = new Int16Array(N);
+function pipeAttitude(){
+  const th = thetaAt(state.x);
+  const nd = _pa.set(Math.sin(th), -Math.cos(th), 0).applyQuaternion(coupon.quaternion).y;
+  const tv = _pb.set(Math.cos(th), Math.sin(th), 0).multiplyScalar(seg().dir).applyQuaternion(coupon.quaternion).y;
+  return {nd, tv};
+}
+function posAdjust(P, hx){
+  const pn = posN(), gr = isGr();
+  let pp = POSP[pn], sagK = gr && pn === 2 ? 0.7 : pp.sag, hmax = gr && pn === 2 ? 1.2 : pp.hmax;
+  if (isPipe()){   // the position changes continuously as you go around the clock
+    const {nd, tv} = pipeAttitude(); state.pnd = nd;
+    const w1 = Math.max(0, nd), w4 = Math.max(0, -nd), rr = 1 - w1 - w4, wv = rr*Math.abs(tv), wh = rr - wv;
+    const mix = (a,b,c,d) => a*w1 + b*wh + c*wv + d*w4;
+    pp = {c0:mix(-0.03,0,0.08,0.1), pen:mix(1.05,1,1.12,0.9)}; sagK = mix(0.3,0.7,1.0,1.3); hmax = mix(1.4,1.2,1.05,1.0);
+  }
+  const sag = Math.max(0, hx - hmax)/0.3*sagK;
+  P.c = clamp(P.c + pp.c0 + 0.3*sag, -0.18, 0.8);
+  P.cold = clamp(P.cold + 0.8*sag, 0, 1);
+  P.uc = clamp(P.uc + 0.35*sag, 0, 1);
+  P.pen *= pp.pen*Math.pow(0.375/T, 0.25);                       // thick plate sinks heat
+  P.burn = !gr && T <= 0.25 ? clamp((hx - 1.3)/0.25, 0, 1) : 0;     // thin plate melts through
+  if (gr) P.lof = clamp(P.lof + Math.max(0, Math.abs(P.b) - 0.25)*1.6, 0, 1);
+  P.sag = sag; P.hx = hx;
+  return P;
+}
+function processConditions(){
+  const P = isS() ? smawConditions() : isT() ? gtawConditions() : gmawConditions();
+  return posAdjust(P, heatIdx());
+}
+function gmawConditions(){
+  const vErr = state.volts - idealV(state.wfs);
+  const ct = state.ctwd, ta = state.travelAngle, sp = state.speed*BASEMID.gmaw/spMid();
+  const I = ampsFor(state.wfs, ct);
+  const b = clamp((state.workAngle - waIdeal())/45, -1, 1);
+  let c = 0.22 - 0.075*vErr + (ta < 0 ? 0.07*Math.min(1,-ta/15) : -0.05*Math.min(1,ta/15)) + 0.14*clamp(ct-0.5,0,1) + 0.15*clamp((8-sp)/6,0,1);
+  c = clamp(c, -0.18, 0.75);
+  const pen = 0.085*(I/200)*Math.sqrt(11/Math.max(sp,4))*(ta<0?1.08:0.96)*(1+0.03*vErr);
+  let por = 0;
+  if (state.gas < 18) por += (18-state.gas)/14;
+  if (state.gas > 45) por += (state.gas-45)/18;
+  if (ct > 0.75) por += (ct-0.75)/0.35;
+  if (Math.abs(ta) > 25) por += (Math.abs(ta)-25)/12;
+  let uc = 0;
+  if (vErr > 1.5) uc += (vErr-1.5)/2 * (0.5 + clamp((sp-14)/8,0,1) + clamp(b*2,0,1));
+  if (b > 0.3) uc += (b-0.3)*2.2;
+  if (sp > 17) uc += (sp-17)/10;
+  let cold = 0;
+  if (sp < 7) cold += (7-sp)/5;
+  if (vErr < -1.5) cold += (-vErr-1.5)/2;
+  if (b < -0.3) cold += (-b-0.3)*2.2;
+  let lof = 0;
+  if (sp > 19) lof += (sp-19)/8;
+  if (vErr < -2.5) lof += (-vErr-2.5)/2;
+  if (pen < 0.035) lof += (0.035-pen)/0.02;
+  const sf = clamp(Math.abs(vErr)/2.5,0,1)*0.6 + clamp((ct-0.6)/0.4,0,1)*0.5 + clamp((Math.abs(ta)-20)/15,0,1)*0.35;
+  return {vErr, I, b, c, pen, por:clamp(por,0,1), uc:clamp(uc,0,1), cold:clamp(cold,0,1), lof:clamp(lof,0,1), inc:0, sf:clamp(sf,0,1)};
+}
+function beadWidth(P){
+  const base = isS() ? (state.rod === 'E6010' ? 0.30 : 0.33) : isT() ? (isPipe() ? 0.40 : 0.28) : 0.38;   // pipe TIG: walk the cup
+  const sp = Math.max(state.speed, spMid()*0.3);
+  return base*clamp(0.8 + 0.25*(P.hx || 1), 0.75, 1.3)*clamp(Math.sqrt(spMid()/sp), 0.8, 1.35);
+}
+function deposit(dt, P){
+  if (isT() && !(state.feed && state.H > 0.35)) return;
+  const dv = isT() ? FEED_V*clamp(state.H/0.7, 0.2, 1)*dt : depRate()*dt;
+  const center = (state.x + (isT() ? 0.05 : 0) - X0)/DX - 0.5, sig = 0.1/DX;
+  const lo = Math.floor(center - 3*sig), hi = Math.ceil(center + 3*sig);
+  let tot = 0; for (let i=lo;i<=hi;i++) tot += Math.exp(-0.5*((i-center)/sig)**2);
+  const pa = passes[passes.length - 1];
+  const u0 = clamp(state.aimU + clamp(P.b, -1, 1)*0.07, -U_MAX*0.8, U_MAX*0.8), w = beadWidth(P);
+  state.lastW = w;
+  const melt = clamp(((P.hx || 1) - 1.1)/0.4, -1, 1.5), nd = state.pnd ?? 1, prot = 0.035 + 0.05*melt + 0.04*nd + Math.min(0, nd)*0.15*Math.max(0, melt - 0.3);   // + melt-through, − concavity (suck-back overhead)
+  depClock += dt;
+  for (let i0=lo; i0<=hi; i0++){
+    const i = isPipe() ? ((i0 % N) + N) % N : i0;
+    if (i < 0 || i >= N) continue;
+    // pipe tie-ins: crossing an end of this same pass that is already filled, the welder feathers in
+    const tie = isPipe() && tieP[i] === state.pass && depClock - tieT[i] > 2.5, tieEnd = (state.x - seg().a)*seg().dir > 0.5;   // starting on, or finishing over, earlier metal
+    if (isPipe() && !tie){ if (tieP[i] !== state.pass) tieA[i] = 0; tieT[i] = depClock; tieP[i] = state.pass; }
+    const sh = Math.exp(-0.5*((i0-center)/sig)**2)/tot, v = dv*sh*(tie ? (tieEnd ? Math.max(0.2, 1 - 0.9*tieA[i]/passArea()) : Math.max(0.5, 1 - 0.5*tieA[i]/passArea())) : 1), bn = bins[i];
+    if (bn.vol/DX < 0.03){ bn.rp += P.pen*v; bn.rv += v; if (isPipe()){ bn.rprot += prot*v; bn.rpv += v; } }   // root pass
+    const slagIn = isS() && bn.slag && bn.slagPass < state.pass;              // welding over uncleaned slag
+    bn.vol += v; bn.b += P.b*v; bn.c += P.c*v; bn.pen += P.pen*v; bn.burn += (P.burn || 0)*v;
+    bn.por += P.por*v; bn.uc += P.uc*v; bn.cold += P.cold*v; bn.lof += P.lof*v; bn.inc += (slagIn ? 1 : P.inc)*v;
+    if (isS()){ bn.slag = 1; bn.slagPass = state.pass; }
+    if (isT()){ bn.h += P.h*v; bn.ox += P.ox*v; }
+    const a = v/DX; pa.A[i] += a; if (isPipe() && !tie) tieA[i] = pa.A[i]; pa.U[i] += u0*a; pa.W[i] += w*a; pa.C[i] += P.c*a; dirty[i] = 1;
+    bn.temp = Math.min(1, bn.temp + sh*dt*9);
+  }
+  if (P.por > 0.3 && pores.length < MAXPORE && Math.random() < P.por*dt*7){
+    const i = isPipe() ? ((Math.round(center) % N) + N) % N : clamp(Math.round(center), 0, N-1);
+    pores.push({i, s:rand(0.2,0.8), dx:rand(-DX/2,DX/2), r:rand(0.01,0.026), pass:state.pass});
+  }
+  beadDirty = true;
+}
+
+// ---------- Weld loop ----------
+const tmpU = new THREE.Vector3(), tmpS = new THREE.Vector3(), tmpZ = new THREE.Vector3(), XA = new THREE.Vector3(1,0,0);
+const basis = new THREE.Matrix4();
+let flicker = 0;
+function torchAxis(){
+  const wa = state.workAngle*Math.PI/180, ta = state.travelAngle*Math.PI/180;
+  tmpU.set(0, Math.sin(wa), Math.cos(wa)).multiplyScalar(Math.cos(ta));
+  tmpU.x = -seg().dir*Math.sin(ta);           // push: handle trails behind the direction of travel
+  return tmpU.normalize();
+}
+function arcPoint(out){
+  const i = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
+  const inJ = state.x >= X0-0.05 && state.x <= X1+0.05;
+  const u = clamp(state.aimU, -U_MAX*0.8, U_MAX*0.8);
+  const q = toLocal(u, (inJ ? surfH(i, u) : floorF(u)) + 0.012);
+  return out.set(state.x, q.y, q.z);
+}
+const AP = new THREE.Vector3(), TIP = new THREE.Vector3();
+function placeTorch(){
+  const u = torchAxis();
+  arcPoint(AP);
+  const sm = isS(), alv = Math.max(0, state.arcLen);
+  TIP.copy(AP).addScaledVector(u, sm ? alv + state.rodLen : isT() ? alv : state.ctwd);
+  tmpS.set(-0.8, 0.35, 0.5).addScaledVector(u, -tmpS.set(-0.8, 0.35, 0.5).dot(u)).normalize();
+  tmpZ.crossVectors(tmpS, u).normalize();
+  basis.makeBasis(tmpS, u, tmpZ);
+  torch.position.copy(TIP);
+  torch.quaternion.setFromRotationMatrix(basis);
+  // wire stickout
+  const wl = Math.max(0.02, state.ctwd - (state.arc ? 0.09 : 0.03));
+  wire.position.copy(TIP).addScaledVector(u, -wl/2);
+  wire.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), u);
+  wire.scale.set(1, wl, 1);
+  if (sm){
+    rodTip.position.copy(AP).addScaledVector(u, alv);
+    rodMesh.position.copy(rodTip.position).addScaledVector(u, state.rodLen/2);
+    rodMesh.quaternion.copy(wire.quaternion);
+    rodMesh.scale.set(1, state.rodLen, 1);
+  }
+  if (isT()){
+    FTIP.copy(AP).add(_fo.set(lerp(0.4, 0.1, fillerIn), lerp(0.2, 0.0, fillerIn), lerp(0.22, 0.05, fillerIn)));
+    filler.position.copy(FTIP).addScaledVector(FDIR, 6);
+    filler.quaternion.setFromUnitVectors(_up, FDIR); filler.scale.set(1, 12, 1);
+    fillerTip.position.copy(FTIP);
+    tungBall.visible = state.contam;
+    tungMat.color.setHex(state.contam ? 0x5a5650 : 0xb9bcc2);
+  }
+  if (isPipe()){ bendObj(torch); bendObj(wire); bendObj(rodMesh); bendObj(rodTip); bendObj(filler); bendObj(fillerTip); }
+  torch.updateMatrixWorld(true);
+  rebuildCable();
+}
+const _fo = new THREE.Vector3(), _up = new THREE.Vector3(0,1,0);
+
+function updateWeld(dt){
+  // keyboard angles
+  const rate = (keys.ShiftLeft || keys.ShiftRight) ? 10 : 32;
+  if (keys.KeyA) state.workAngle -= rate*dt;
+  if (keys.KeyD) state.workAngle += rate*dt;
+  if (keys.KeyW) state.travelAngle += rate*dt;
+  if (keys.KeyS) state.travelAngle -= rate*dt;
+  if (isT()){
+    const pr = (keys.ShiftLeft || keys.ShiftRight) ? 0.2 : 0.6;
+    if (keys.KeyQ) state.pedal -= pr*dt;
+    if (keys.KeyE) state.pedal += pr*dt;
+    state.pedal = clamp(state.pedal, 0, 1);
+    if (state.grind > 0){ state.grind -= dt; if (state.grind <= 0){ state.contam = false; toast('Fresh point. Strike back up.', 'good', 'grind2'); } }
+  }
+  if (state.mode === 'test' && state.arc){
+    const dr = state.drift;
+    dr.w = clamp((dr.w + rand(-1,1)*40*dt) * Math.exp(-dt*0.7), -7, 7);
+    dr.t = clamp((dr.t + rand(-1,1)*40*dt) * Math.exp(-dt*0.7), -7, 7);
+    state.workAngle += dr.w*dt; state.travelAngle += dr.t*dt;
+  }
+  state.workAngle = clamp(state.workAngle, 5, 175);
+  { const ar = (keys.ShiftLeft || keys.ShiftRight) ? 0.08 : 0.25;
+    if (keys.KeyC) state.aimU += ar*dt; if (keys.KeyZ) state.aimU -= ar*dt;
+    state.aimU = clamp(state.aimU, -U_MAX*0.75, U_MAX*0.75); }
+  state.travelAngle = clamp(state.travelAngle, -40, 40);
+
+  let m = mapMouse();
+  if (kb.on){
+    const fine = keys.ShiftLeft || keys.ShiftRight;
+    const tv = (targets().sg[0] + targets().sg[1]) / 2 / 60;          // in/s at mid-target speed
+    const tr = tv * (fine ? 0.6 : 1), dr = fine ? 0.04 : 0.15;         // travel & distance rates
+    // arrows act in screen space: whichever key points along the joint travels, the other pair sets distance
+    const ex = (keys.ArrowRight?1:0) - (keys.ArrowLeft?1:0), ey = (keys.ArrowDown?1:0) - (keys.ArrowUp?1:0);
+    // one arrow pair travels (the pair that lines up with the joint on screen), the other pair only sets distance,
+    // so in vertical positions ↑/↓ never change the arc length
+    let tdir, ddir;
+    if (isPipe()){ tdir = ex*seg().dir; ddir = -ey; }        // pipe: → travels toward STOP, ↑ farther
+    else if (Math.abs(mapB.shx) >= Math.abs(mapB.shy)){ tdir = ex*Math.sign(mapB.shx); ddir = ey*(Math.sign(mapB.ay) || -1); }
+    else { tdir = ey*Math.sign(mapB.shy); ddir = ex*(Math.sign(mapB.ax) || 1); }
+    kb.x += tdir*tr*dt; kb.d += ddir*dr*dt;
+    kb.x = isPipe() ? clamp(kb.x, Math.min(seg().a, seg().b) - 0.3, Math.max(seg().a, seg().b) + 0.3) : clamp(kb.x, X0-1.6, X1+1.6);
+    kb.d = clamp(kb.d, isG() ? 0.05 : isS() ? -0.1 - 0.06*(ROD_LEN - state.rodLen) : -0.1, 1.5);
+    const al = isS() ? kb.d + 0.06*(ROD_LEN - state.rodLen) : kb.d;
+    m = {x:kb.x, ct:kb.d, al:clamp(al, -0.1, 1.5)};
+  }
+  const k = 1 - Math.exp(-dt*28);
+  state.x = state.pos === 'P1G' && !kb.on ? m.x : lerp(state.x, m.x, k);
+  applyRoll();
+  state.ctwd = lerp(state.ctwd, m.ct, k);
+  state.arcLen = lerp(state.arcLen, m.al, k);
+  const v = (state.x - state.prevX)/Math.max(dt,1e-4); state.prevX = state.x;
+  state.vel = lerp(state.vel || 0, v, 1 - Math.exp(-dt/0.45));
+  state.speed = Math.abs(state.vel)*60;
+
+  // arc gating
+  if (state.burnback > 0) state.burnback -= dt;
+  if (state.stuck > 0) state.stuck -= dt;
+  const inRange = state.x >= X0-0.2 && state.x <= X1+0.2;
+  const was = state.arc;
+  let want = state.trigger && state.burnback <= 0 && state.stuck <= 0;
+  if (want && !inRange){ want = false; toast('Strike the arc on the joint, at the START mark', 'warn', 'range'); }
+  if (isT()){
+    const al = state.arcLen;
+    if (want && state.grind > 0) want = false;
+    else if (want && state.pedal < 0.08){ want = false; }
+    else if (want && !was && al > 0.3){ want = false; toast('Too far for the high-frequency start. Bring the tungsten closer.', 'warn', 'far'); }
+    else if (want && was && al > 0.4){ want = false; toast('Arc too long, so it went out. Hold about 3/32″.', 'bad', 'out', 1500); }
+    state.dipT = (want && al < 0.015) ? (state.dipT||0) + dt : 0;
+    if (state.dipT > 0.12 && !state.contam){
+      state.contam = true; state.contams++;
+      const ci = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1); bins[ci].inc += Math.max(bins[ci].vol, 1e-5) * 3; bins[ci].vol = Math.max(bins[ci].vol, 1e-5);
+      toast('You dipped the tungsten! Let off the pedal and press G to regrind.', 'bad', 'dip', 1500);
+    }
+    state.feed = keys.KeyF && want;
+    state.touchT = (state.feed && al < 0.035) ? (state.touchT||0) + dt : 0;
+    if (state.touchT > 0.12 && !state.contam){
+      state.contam = true; state.contams++;
+      toast('The filler touched the tungsten! Let off and press G to regrind.', 'bad', 'dip2', 1500);
+    }
+    if (state.feed && !state.wasFeed && state.x >= X0 && state.x <= X1 + 0.1) state.dabs.push(state.x + 0.05);
+    state.wasFeed = state.feed;
+    if (was && !want){
+      const ci = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
+      if (state.tigMax*state.pedal > 0.6*tigIdeal() && state.H > 0.85 && (isPipe() || (state.x >= X0 && state.x <= PL/2)) && bins[ci].vol > 1e-6){
+        bins[clamp(ci,0,N-1)].crack = 1; state.cracks++; beadDirty = true;
+        toast('Crater crack! Taper off the pedal to fill the crater before breaking the arc.', 'bad', 'crack', 1500);
+      }
+    }
+  } else if (isS()){
+    const al = state.arcLen, E = spec();
+    if (want && state.rodLen <= STUB + 0.01){ want = false; toast('Electrode is a stub. Press R for a fresh rod.', 'warn', 'stub'); }
+    else if (want && !was){
+      if (al > 0.25){ want = false; toast('Too far to strike. Bring the rod tip down to the joint.', 'warn', 'far'); }
+      else if (al < 0.02){ want = false; toast('Rod is jammed against the plate. Lift up a little to strike.', 'warn', 'jam'); }
+    } else if (want && was){
+      if (al > 0.32){ want = false; toast('Arc too long, so it went out! Feed the rod down as it burns.', 'bad', 'out', 1500); }
+      else if (al < E.stick + (state.amps < recoAmps() - 15 ? 0.02 : 0)){
+        want = false; state.stuck = 1.2; state.sticks++;
+        toast('STUCK! The rod froze to the plate. Hold a slightly longer arc.', 'bad', 'stk', 1200);
+      }
+    }
+  } else {
+    if (want && state.ctwd > 1.05){ want = false; toast('Too far away. No arc. Move the gun closer.', 'warn', 'far'); }
+    if (want && state.ctwd < 0.14){
+      want = false; state.burnback = 0.9; state.burnbacks++;
+      toast('BURNBACK! Wire fused to the contact tip. Back off the stickout.', 'bad', 'bb', 1200);
+    }
+  }
+  state.arc = want;
+  if (state.arc && !was){
+    state.starts++; state.arcOnT = 0;
+    if (!state.firstArc){ state.firstArc = true; state.paceX = state.x; }
+    else if (Math.abs(state.paceX - state.x) > 0.6) state.paceX = state.x;
+  }
+
+  // TIG puddle heat
+  if (isT()){
+    if (state.arc){
+      const eq = (state.tigMax*state.pedal/tigIdeal())*Math.pow(targets().pace/Math.max(state.speed,0.5), 0.35)*(1 - 1.2*Math.max(0, state.arcLen-0.13))*(state.contam ? 0.85 : 1);
+      state.H = lerp(state.H, eq, 1 - Math.exp(-dt/0.9));
+    } else state.H = lerp(state.H, 0, 1 - Math.exp(-dt/0.6));
+    fillerIn = lerp(fillerIn, state.feed ? 1 : 0, 1 - Math.exp(-dt*22));
+    fillerTip.visible = state.feed && state.H > 0.35;
+  }
+  let P = null;
+  if (state.arc){
+    P = processConditions(); lastSf = P.sf;
+    if (isS()) state.rodLen = Math.max(STUB, state.rodLen - spec().burn*(state.amps/spec().ideal)/60*dt);
+    deposit(dt, P);
+    if (isT() && !state.feed && state.H > 1.12){
+      const c = (state.x - X0)/DX - 0.5;
+      for (let i=Math.max(0,Math.floor(c-3)); i<=Math.min(N-1,Math.ceil(c+3)); i++) if (bins[i].vol > 0) bins[i].ucx = Math.min(1, bins[i].ucx + dt*(state.H-1.0)*0.9);
+    }
+    state.paceX += seg().dir*(targets().pace/60)*dt;
+    // stats
+    state.arcOnT += dt;
+    const st = state.st;
+    if (state.arcOnT > 0.3) { st.t += dt;
+    st.sp += state.speed*dt; st.sp2 += state.speed*state.speed*dt;
+    st.wa += state.workAngle*dt; st.ta += state.travelAngle*dt; st.ct += (isG() ? state.ctwd : Math.max(0,state.arcLen))*dt;
+    st.ht += state.H*dt; st.pd += state.pedal*dt; if (state.feed) st.feedT += dt; if (P.sag > 0.3) st.sagT += dt;
+    GAUGES.forEach(g => { const z = g.zone(g.get()); st.z[g.id] = (st.z[g.id]||0) + (z==='g'?1:z==='y'?0.5:0)*dt; });
+    }
+    if (!state.helmet) state.noHelmetTime += dt;
+    // coaching
+    if (state.mode === 'practice' && st.t > 1.2){
+      const tg = targets();
+      if (state.speed > tg.sy[1] + 1) toast('Too fast: the bead is getting skinny', 'warn', 'fast');
+      else if (state.speed < tg.sy[0] - 0.5 && st.t > 2) toast('Too slow: metal is piling up (cold lap risk)', 'warn', 'slow');
+      if (isT() && state.H < 0.7 && state.feed) toast('Puddle isn\'t wet yet. Wait before you dab.', 'warn', 'cold');
+      if (isT() && state.H > 1.3) toast('Puddle is too hot. Speed up or ease off the pedal.', 'warn', 'hot');
+      if (isT() && state.arcLen > 0.17) toast('Arc too long: tighten it up to about 3/32″', 'warn', 'al');
+      if (isT() && state.travelAngle < 0) toast('Push the TIG torch. The filler goes in ahead of it.', 'warn', 'push');
+      if (isT() && (state.x - seg().b)*seg().dir > -0.6 && state.pedal > 0.6) toast('Coming up on the end: ease off the pedal (Q) to fill the crater', 'warn', 'taper', 5000);
+      if (isG() && state.ctwd > 0.8) toast('Stickout too long: losing gas coverage', 'warn', 'ct');
+      if (isS() && state.arcLen > 0.18) toast('Arc too long: feed the rod down (lower the cursor)', 'warn', 'al');
+      if (isS() && state.arcLen < 0.06) toast('Arc too short: you\'re about to stick', 'warn', 'al-');
+      if (isS() && state.travelAngle > 2) toast('Drag the rod. Pushing runs slag ahead of the puddle.', 'warn', 'push');
+      if (isS() && Math.abs(P.aE) > 18) toast(P.aE > 0 ? 'Amperage is high for this rod' : 'Amperage is low: the rod wants to stick', 'warn', 'amp', 6000);
+      if (!isGr() && state.workAngle > 56) toast('Work angle too steep: favoring the flange (undercut on web)', 'warn', 'wa+');
+      if (!isGr() && state.workAngle < 34) toast('Work angle too flat: favoring the web', 'warn', 'wa-');
+      if (isGr() && Math.abs(state.workAngle - 90) > 12) toast('Torch is leaning: keep it square to the groove so both sidewalls fuse', 'warn', 'wag');
+      if (P.sag > 0.4) toast(posN() === 4 ? 'The puddle is sagging overhead! Travel faster, cut the heat, keep a tight arc.' : 'The puddle is sagging and dripping! Turn the heat down or move faster.', 'warn', 'sag');
+      if (Math.abs(state.travelAngle) > 22) toast('Travel angle too steep: spatter & porosity', 'warn', 'ta');
+      if (Math.abs(P.vErr) > 2) toast(P.vErr > 0 ? 'Voltage is high for this wire speed' : 'Voltage is low: arc is stubbing', 'warn', 'v', 6000);
+    }
+    if (isT() && state.argon < 5) toast('No argon! Open the cylinder valve.', 'bad', 'gas', 5000);
+    if (isG() && state.gas < 5) toast('No shielding gas! Check the cylinder valve.', 'bad', 'gas', 5000);
+  } else lastSf = 0;
+
+  if (beadDirty || bins.some(b => b.temp > 0.004)) { updateBead(); beadDirty = false; }
+  placeTorch();
+
+  // sparks & fume
+  if (state.arc){
+    const nSp = isT() ? (Math.random() < P.sf*0.5 ? 1 : 0) : Math.round((70 + 300*P.sf) * dt * 3) + (Math.random() < 0.5 ? 1 : 0);
+    for (let i=0;i<nSp;i++) spawnSpark(AP, P.sf);
+    if (P.sag > 0.5 && Math.random() < P.sag*dt*4) spawnSpark(AP, 0, true);
+    smokeT -= dt;
+    if (smokeT <= 0){ smokeT = isS() ? 0.035 : isT() ? 0.3 : 0.07; const s = smoke[smokeHead]; smokeHead = (smokeHead+1)%smoke.length;
+      s.userData.age = 0; s.userData.life = rand(2.2,3.5); coupon.localToWorld(bendPos(s.position.copy(AP))).add(new THREE.Vector3(rand(-.1,.1), 0.15, rand(-.1,.1))); }
+  }
+
+  // HUD
+  const full = i => isGr() ? D.ufill[i] >= -1/32 : D.size[i] >= state.fsize - 0.004;
+  let covered = 0; for (let i=0;i<N;i++) if (full(i)) covered++;
+  $('#prog').style.width = (covered/N*100).toFixed(1) + '%';
+  const bi = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
+  const inJ = state.x >= X0 && state.x <= X1;
+  if (isGr()) $('#legVal').textContent = !inJ || D.A[bi] < 0.003 ? '—' : D.ufill[bi] >= -1/64 ? `full · +${Math.max(0, D.rein[bi]).toFixed(3)}″ cap` : `${Math.round(clamp(1 + D.ufill[bi]/T, 0, 1)*100)}% full`;
+  else $('#legVal').textContent = inJ && D.size[bi] > 0.02 ? `${D.size[bi].toFixed(3)}″ of ${fr32(state.fsize)} (legs ${D.Lb[bi].toFixed(2)} / ${D.Lw[bi].toFixed(2)})` : '—';
+  $('#passVal').textContent = `${state.pass} of ~${fillPasses()}`;
+  $('#passHint').textContent = passAdvice(bi);
+  const au = state.aimU, side = isGr() ? (au > 0 ? 'near side' : 'far side') : (au > 0 ? 'flange' : 'web');
+  $('#aimVal').textContent = Math.abs(au) < 0.02 ? 'center' : `${Math.abs(au).toFixed(2)}″ toward ${side}`;
+  drawXsec(bi);
+  if (isT()){
+    $('#pedVal').textContent = Math.round(state.pedal*100) + '% → ' + Math.round(state.tigMax*state.pedal) + ' A';
+    $('#pedBar').style.width = (state.pedal*100).toFixed(0) + '%';
+    $('#tungVal').textContent = state.grind > 0 ? 'grinding…' : state.contam ? 'CONTAMINATED' : 'clean';
+    $('#tungVal').style.color = state.contam ? '#ff8a8a' : '';
+    $('#dabVal').textContent = state.dabs.length;
+  }
+  if (isS()){ $('#rodVal').textContent = state.rodLen.toFixed(1) + '″'; $('#rodBar').style.width = ((state.rodLen-STUB)/(ROD_LEN-STUB)*100).toFixed(1) + '%'; }
+  let status;
+  if (state.burnback > 0) status = 'Burnback: clearing the contact tip…';
+  else if (state.stuck > 0) status = 'Stuck electrode: breaking it free…';
+  else if (isT() && state.grind > 0) status = 'Regrinding the tungsten…';
+  else if (isT() && state.contam && !state.arc) status = 'Tungsten contaminated: press G to regrind';
+  else if (state.arc) status = 'ARC ON · ' + (isS() ? state.amps + ' A DCEP' : isT() ? Math.round(state.tigMax*state.pedal) + ' A DCEN' + (state.contam ? ' · ARC WANDERING' : '') : Math.round(ampsFor(state.wfs, state.ctwd)) + ' A');
+  else if (isS() && state.rodLen <= STUB + 0.01) status = 'Stub! Press R for a fresh rod';
+  else if (!state.firstArc) status = isT() ? 'Line up at START and press the pedal' : 'Line up at START and pull the trigger';
+  else if (segDone() && isPipe() && state.seg < SEGS.length - 1) status = 'Half done: V = walk around to the other side';
+  else if (segDone()) status = state.pass < fillPasses() ? `Pass ${state.pass} done: N = next pass · Enter = inspect` : 'Weld complete? Enter = inspect · N = another pass';
+  else status = isS() ? 'Arc off. Restrike just ahead of your crater' : 'Arc off. Restart just ahead of your crater';
+  if (state.arc && isPipe() && state.pos !== 'P1G'){
+    const sp = toScreen(state.x, aimY(), aimZ());
+    if (Math.abs(sp.x - W/2) > 0.34*W || Math.abs(sp.y - H/2) > 0.36*H) status = 'Running out of view: stop, let the view catch up, restart on your crater';
+  }
+  $('#status').textContent = status;
+  if (state.mode === 'practice' && state.firstArc){
+    const dlt = (state.x - state.paceX)*seg().dir;
+    $('#pace').textContent = state.arc ? (Math.abs(dlt) < 0.2 ? 'On pace ✓' : dlt > 0 ? `Ahead of the ${targets().pace} ipm pace by ${dlt.toFixed(2)}″` : `Behind the ${targets().pace} ipm pace by ${(-dlt).toFixed(2)}″`) : '';
+    ghost.visible = state.arc && (state.paceX - seg().b)*seg().dir < 0.2;
+    if (isGr()) ghost.position.set(state.paceX, T + 0.55, 0); else ghost.position.set(state.paceX, ROOT_Y + 0.42, ROOT_Z + 0.42);
+    ghost.rotation.set(0, Math.PI/2, 0); bendObj(ghost);
+  } else { $('#pace').textContent = ''; ghost.visible = false; }
+  if (state.mode === 'practice') updateGauges();
+
+  // auto-inspect after finishing past STOP
+  if (!isGr() && state.pass >= fillPasses() && !state.arc && state.firstArc && segPast() && bins[N-1].vol > 0) {
+    state.doneTimer += dt; if (state.doneTimer > 1.4) finishWeld();
+  } else state.doneTimer = 0;
+}
+
+const _wv = new THREE.Vector3();
+function updateEffects(dt){
+  // arc visuals
+  flicker = state.arc ? 0.75 + Math.random()*0.5 : 0;
+  arcGlow.visible = arcCore.visible = puddle.visible = state.arc;
+  if (state.arc){
+    arcGlow.position.copy(AP); arcCore.position.copy(AP);
+    if (isT() && state.contam){ _wv.set(rand(-0.05,0.05), rand(-0.02,0.02), rand(-0.02,0.02)); arcGlow.position.add(_wv); arcCore.position.add(_wv); }
+    const s = 1.6 + flicker*1.2;
+    arcGlow.scale.set(s, s, 1); arcCore.scale.set(0.32*flicker+0.12, 0.32*flicker+0.12, 1);
+    arcLight.position.copy(AP).addScaledVector(jointN(), 0.35); bendP(arcLight); bendP(arcGlow); bendP(arcCore);
+    arcLight.intensity = 5*flicker;
+    const i = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
+    const sz = Math.max(0.07, Math.max(D.Lb[i], D.Lw[i])*0.55);
+    puddle.position.copy(AP).addScaledVector(jointN(), -0.025);
+    puddle.scale.set(sz*1.3, sz*0.5, sz*0.5); puddle.rotation.set(isGr() ? Math.PI/2 : -Math.PI/4, 0, 0); bendObj(puddle);
+    wire.material.emissive.setRGB(0.9, 0.25, 0.05);
+  } else { arcLight.intensity = 0; wire.material.emissive.setRGB(0,0,0); }
+  rodTip.visible = state.arc && isS();
+
+  // helmet / exposure
+  const welding = state.phase === 'weld';
+  const goalExp = state.arc ? (state.helmet ? 0.34 : 1.6) : 1.0;
+  renderer.toneMappingExposure = lerp(renderer.toneMappingExposure, goalExp, 1 - Math.exp(-dt*(state.arc ? 40 : 12)));
+  $('#lens').style.opacity = state.arc && state.helmet ? 1 : 0;
+  $('#frame').style.opacity = welding && state.helmet ? 1 : 0;
+  $('#flash').style.opacity = state.arc && !state.helmet ? (0.55 + Math.random()*0.3).toFixed(2) : 0;
+  if (state.arc && !state.helmet) toast('ARC FLASH! Put your helmet down (H)', 'bad', 'flash', 2000);
+
+  updateSparks(dt, lastSf);
+  smoke.forEach(s => {
+    const u = s.userData; if (u.age > u.life){ s.material.opacity = 0; return; }
+    u.age += dt; const f = u.age/u.life;
+    s.position.y += dt*(1.4 + f*1.5); s.position.x += dt*0.25; s.position.z += dt*0.1;
+    const sc = 0.3 + f*2.6; s.scale.set(sc, sc, 1);
+    s.material.opacity = (isS() ? 0.26 : 0.16)*Math.sin(Math.PI*Math.min(1,f*1.3)) * (state.arc ? 0.6 : 1);
+  });
+  // cooling
+  let hot = false;
+  for (const b of bins){ if (b.temp > 0){ b.temp *= Math.exp(-dt/3.2); if (b.temp < 0.003) b.temp = 0; else hot = true; } }
+  if (hot && state.phase !== 'weld') { updateBead(); }
+  updateFlakes(dt);
+  if (state.phase === 'chip' && chipDone > 0){ chipDone -= dt; if (chipDone <= 0) afterChip(); }
+  updateAudio(lastSf);
+}
+
+// ---------- Flow ----------
+function setPhase(p){
+  state.phase = p;
+  $('#setup').classList.toggle('hidden', p !== 'setup');
+  $('#pause').classList.toggle('hidden', p !== 'paused');
+  $('#hud').classList.toggle('hidden', !(p === 'weld' || p === 'paused'));
+  $('#inspect').classList.toggle('hidden', p !== 'inspect');
+  $('#chip').classList.toggle('hidden', p !== 'chip');
+  const showTorch = p === 'weld' || p === 'paused';
+  toolVis(showTorch);
+  cutPlane.visible = p === 'inspect';
+  if (p === 'setup') applyPosition();
+  canvas.style.cursor = p === 'weld' ? 'crosshair' : p === 'chip' ? 'pointer' : 'default';
+  if (p !== 'weld'){ state.trigger = false; state.arc = false; ghost.visible = false; }
+}
+function toolVis(show){
+  const sm = isS(), tg = isT();
+  torch.visible = cable.visible = show;
+  torchInner.visible = isG(); stinger.visible = sm; tig.visible = tg;
+  wire.visible = show && isG(); rodMesh.visible = show && sm; filler.visible = show && tg;
+  if (!show) fillerTip.visible = false;
+  if (!show) rodTip.visible = false;
+  lastCableKey = '';
+}
+function resetCoupon(){
+  setThickness(); passes = []; newPass(); dirty.fill(1);
+  freshBins(); pores.length = 0; flakes.forEach(f => f.life = 0); chipDone = 0; spatN = 0; spatMesh.count = 0; poreMesh.count = 0;
+  Object.assign(state, {pedal:0.85, H:0, feed:false, wasFeed:false, contam:false, contams:0, grind:0, cracks:0, dabs:[],
+    pass:1, chipNext:false, aimU:0,
+    vel:0, workAngle:waIdeal(), travelAngle: isS() ? -10 : isT() ? 12 : 10, ctwd:0.5, arcLen:0.125, rodLen:ROD_LEN, sticks:0, rodChanges:0, stuck:0, speed:0, arc:false, trigger:false, burnback:0,
+    firstArc:false, starts:0, burnbacks:0, spatter:0, noHelmetTime:0, doneTimer:0, drift:{w:0,t:0}, st:freshStats()});
+  kb.on = false; state.seg = 0;
+  if (isPipe()){ state.x = state.prevX = seg().a; mouse.px = mouse.x; mouse.py = mouse.y; applyRoll(); }
+  else { const m = mapMouse(); state.x = state.prevX = m.x; }
+  for (let i=0;i<MAXSPK;i++){ spkLife[i]=0; spkPos[i*3+1]=-999; }
+  $('#coach').innerHTML = '';
+  updateBead();
+}
+function startWeld(){
+  initAudio();
+  resetCoupon();
+  $('#testNote').classList.toggle('hidden', state.mode !== 'test');
+  $('#gauges').classList.toggle('hidden', state.mode === 'test');
+  $('#legNow').classList.toggle('hidden', state.mode === 'test');
+  applyPosition();
+  const sm = isS(), tg = isT(), jt = isGr() ? 'V-GROOVE' : 'T-JOINT';
+  if (!isGr() && fillPasses() > 1) setTimeout(() => toast(`A ${fr32(state.fsize)} fillet is over the D1.1 single-pass max (${fr32(singleMax())}) here: plan ${fillPasses()} passes (N = next pass, Z / C = bead aim)`, 'good', 'mp', 8000), 1200);
+  $('#legLbl').textContent = isGr() ? 'Groove at torch' : 'Fillet at torch';
+  $('#kV').classList.toggle('hidden', !(isPipe() && SEGS.length > 1));
+  RIP.L = sm ? spec().ripL : 0.055; RIP.A = sm ? spec().ripA : tg ? 0.01 : 0.0045; RIP.mode = tg ? 'dabs' : 'sin';
+  bCol.set(baseCol); beadGeo.attributes.color.needsUpdate = true;
+  buildGauges();
+  rodMesh.material.color.setHex(spec().coat);
+  slag.visible = sm;
+  if (sm) arcGlow.material.color.setRGB(1.0, 0.72, 0.45); else if (tg) arcGlow.material.color.setRGB(0.7, 0.72, 1.25); else arcGlow.material.color.setRGB(0.55, 0.75, 1.0);
+  arcLight.color.setHex(sm ? 0xffd2a0 : tg ? 0xd9d4ff : 0xcfe6ff);
+  $('#kMouse').textContent = isG() ? 'mouse → travel & CTWD' : 'mouse → travel & arc length';
+  $('#tigNow').classList.toggle('hidden', !tg); $('#kT').classList.toggle('hidden', !tg);
+  $('#rodNow').classList.toggle('hidden', !sm); $('#kR').classList.toggle('hidden', !sm);
+  $('#gaugePanel .ptitle').textContent = (isPipe() ? `${posLabel()} ${PIPES[state.pipe].name} · ` : `${state.pos} ${fr32(T)} ${jt} · `) + (sm ? `SMAW ${state.rod}` : tg ? 'GTAW' : 'GMAW');
+  $('#hudSet').textContent = sm ? `⅛″ ${state.rod} · ${state.amps} A · DCEP` : tg ? `${state.tigMax} A max · ${state.argon} CFH Ar · DCEN` : `${state.wfs} ipm · ${state.volts.toFixed(1)} V · ${state.gas} CFH · ~${Math.round(ampsFor(state.wfs,0.5))} A`;
+  drawDisplay();
+  setPhase('weld');
+  setPreset(1);
+  updateBead();
+  toast(state.mode === 'practice' ? 'Practice mode: follow the green pace ring' : 'Test mode: you are on your own. Good luck.', 'good', 'start');
+}
+function pauseGame(){ if (state.phase === 'weld') setPhase('paused'); }
+function resumeGame(){ setPhase('weld'); }
+function finishWeld(){
+  if (state.phase !== 'weld') return;
+  if (!bins.some(b => b.vol > 0)){ toast('Lay some weld metal first!', 'warn', 'nothing'); return; }
+  state.trigger = false; state.arc = false;
+  if (isS() && bins.some(b => b.slag)){
+    state.chipNext = false; $('#skipBtn').classList.add('hidden');
+    setPhase('chip'); setPreset('insp'); updateBead(); chipProgress();
+    return;
+  }
+  goInspect();
+}
+function passAdvice(i){
+  const n = fillPasses(), p = state.pass;
+  if (isGr()){
+    if (p === 1) return isPipe() ? 'root: keep a small keyhole and melt through the land' : 'root: center it and fuse into the backing';
+    let hmin = 9; for (let j=0;j<M;j++) if (Math.abs(uAt(j)) <= G_TOPH) hmin = Math.min(hmin, SURF[i*M+j]);
+    const wid = hmin < T ? 2*(G_GAP/2 + hmin*TANB) : (D.jB[i] - D.jA[i])*DU + 0.1;
+    const cap = hmin >= T - 0.06;
+    if (wid > splitW()) return `${cap ? 'cap' : 'fill'} layer is ${wid.toFixed(2)}″ wide (> ${fr32(splitW())}): split it, one bead per side (Z / C)`;
+    return cap ? 'cap: lap past both bevel edges' : 'fill';
+  }
+  if (n === 1) return state.fsize > 0.3 ? 'single pass: slow, steady, full size' : 'single pass';
+  return p === 1 ? 'root: aim into the corner' : p === 2 ? 'aim toward the flange (C), overlap half the root' : p === 3 ? 'aim toward the web (Z), tie in under the toe' : 'cap/extra: split the face, overlap ½ bead';
+}
+const xsecCv = document.getElementById('xsec'), xsecG = xsecCv.getContext('2d'), _xh = new Float32Array(M);
+function drawXsec(i){
+  const g = xsecG, w = xsecCv.width, h = xsecCv.height;
+  g.clearRect(0,0,w,h);
+  const gr = isGr();
+  const ext = gr ? {z0:-(G_TOPH+0.4), z1:G_TOPH+0.4, y0:-0.3, y1:T+0.3} : {z0:ROOT_Z-0.55, z1:ROOT_Z+0.75, y0:ROOT_Y-0.12, y1:ROOT_Y+0.7};
+  const sc = Math.min((w-8)/(ext.z1-ext.z0), (h-8)/(ext.y1-ext.y0));
+  const PX = z => 4 + (z - ext.z0)*sc, PY = y => h - 4 - (y - ext.y0)*sc;
+  const path = (pts) => { g.beginPath(); pts.forEach((q,k) => k ? g.lineTo(PX(q[0]),PY(q[1])) : g.moveTo(PX(q[0]),PY(q[1]))); };
+  // plates
+  const LP = (u, hh) => { const q = toLocal(u, hh); return [q.z, q.y]; };
+  const fl = []; for (let j=0;j<M;j++) fl.push(LP(uAt(j), FLOOR[j]));
+  g.fillStyle = '#59606a';
+  if (gr){ path(fl.concat([[ext.z1, ext.y0], [ext.z0, ext.y0]])); }
+  else path(fl.concat([LP(-U_MAX, -0.8), LP(U_MAX, -0.8)]));
+  g.closePath(); g.fill();
+  // replay passes for this bin
+  const hist = []; replayInto(_xh, 0, i, passes.length, hist);
+  const surfPts = arr => { const pts = []; for (let j=0;j<M;j++){ if (arr[j] > FLOOR[j] + 0.004){ const q = toLocal(uAt(j), arr[j]); pts.push([q.z, q.y]); } } return pts; };
+  const fin = surfPts(_xh);
+  if (fin.length > 1){
+    const back = []; for (let j=M-1;j>=0;j--){ if (_xh[j] > FLOOR[j] + 0.004){ const q = toLocal(uAt(j), FLOOR[j]); back.push([q.z, q.y]); } }
+    path(fin.concat(back)); g.closePath(); g.fillStyle = '#a8763e'; g.fill();
+    g.strokeStyle = 'rgba(20,12,6,.8)'; g.lineWidth = 1.5;
+    hist.slice(0, -1).forEach(arr => { const pts = surfPts(arr); if (pts.length > 1){ path(pts); g.stroke(); } });
+    g.strokeStyle = '#ffd08a'; g.lineWidth = 2; path(fin); g.stroke();
+  }
+  // aim marker and expected bead width
+  const u = clamp(state.aimU, -U_MAX*0.8, U_MAX*0.8), hs = surfH(i, u);
+  const half = state.lastW/2, a = LP(u - half, surfH(i, u - half) + 0.06), b = LP(u + half, surfH(i, u + half) + 0.06), c = LP(u, hs), tq = LP(u, hs + 0.28);
+  g.strokeStyle = '#7cc4ff'; g.lineWidth = 2; g.setLineDash([4,3]); g.beginPath(); g.moveTo(PX(a[0]), PY(a[1])); g.lineTo(PX(b[0]), PY(b[1])); g.stroke(); g.setLineDash([]);
+  g.fillStyle = '#7cc4ff'; g.beginPath(); g.arc(PX(c[0]), PY(c[1]), 4.5, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.moveTo(PX(c[0]), PY(c[1])); g.lineTo(PX(tq[0]), PY(tq[1])); g.stroke();
+}
+function nextPass(){
+  if (state.arc || state.phase !== 'weld') return;
+  if (!bins.some(b => b.vol > 0)){ toast('Run the root pass first', 'warn', 'np'); return; }
+  if (isS() && bins.some(b => b.slag)){
+    state.chipNext = true; $('#skipBtn').classList.remove('hidden');
+    setPhase('chip'); setPreset('insp'); updateBead(); chipProgress();
+    return;
+  }
+  beginPass();
+}
+function beginPass(){
+  newPass(); state.pass = passes.length; state.firstArc = false; state.doneTimer = 0;
+  if (isPipe()){ state.seg = 0; state.x = state.prevX = seg().a; kb.on = false; applyRoll(); }
+  setPreset(1);
+  toast(`Pass ${state.pass}: back to the START mark`, 'good', 'pass');
+}
+function afterChip(){
+  chipDone = 0;
+  if (state.chipNext){ state.chipNext = false; setPhase('weld'); beginPass(); }
+  else goInspect();
+}
+function goInspect(){
+  chipDone = 0;
+  setPhase('inspect');
+  setPreset('insp');
+  updateBead();
+  showInspection(evaluate());
+}
+
+// ---------- Slag chipping ----------
+let chipDone = 0;
+const MAXFLK = 90;
+const flakes = Array.from({length:MAXFLK}, () => ({p:new THREE.Vector3(), v:new THREE.Vector3(), r:new THREE.Vector3(), life:0}));
+const flakeMesh = new THREE.InstancedMesh(new THREE.TetrahedronGeometry(1), new THREE.MeshStandardMaterial({color:0x2e2620, roughness:0.25, metalness:0.1}), MAXFLK);
+flakeMesh.frustumCulled = false; flakeMesh.count = 0; coupon.add(flakeMesh);
+let flkHead = 0;
+function spawnFlake(i){
+  const f = flakes[flkHead]; flkHead = (flkHead+1) % MAXFLK;
+  const pp = profilePoint(i, 0.5); f.p.set(binX(i) + rand(-0.05,0.05), pp.y + 0.02, pp.z); bendPos(f.p);
+  f.v.set(rand(-8,8), rand(10,26), rand(4,18)); f.r.set(rand(0,6), rand(0,6), rand(0,6)); f.life = rand(0.8, 1.6); f.s = rand(0.03, 0.09);
+}
+function updateFlakes(dt){
+  let n = 0;
+  for (const f of flakes){
+    if (f.life <= 0) continue;
+    f.life -= dt; f.v.addScaledVector(GL, 260*dt); f.p.addScaledVector(f.v, dt);
+    if (!isPipe() && GL.y < -0.5 && f.p.y < T + 0.02 && f.p.y > T - 0.3 && Math.abs(f.p.z) < 3 && Math.abs(f.p.x) < PL/2 && (!isGr() || Math.abs(f.p.z) > G_TOPH)){ f.p.y = T + 0.02; f.v.multiplyScalar(0.3); f.v.y = Math.abs(f.v.y)*0.2; }
+    dummy.position.copy(f.p); dummy.rotation.set(f.r.x + f.life*5, f.r.y, f.r.z); dummy.scale.setScalar(f.s);
+    dummy.updateMatrix(); flakeMesh.setMatrixAt(n++, dummy.matrix);
+  }
+  flakeMesh.count = n; flakeMesh.instanceMatrix.needsUpdate = true;
+}
+function chipAt(mx, my){
+  let best = -1, bd = 45*45;
+  for (let i=0;i<N;i++){
+    if (!bins[i].slag) continue;
+    const pp = profilePoint(i, 0.5), p = toScreen(binX(i), pp.y, pp.z);
+    const d = (p.x-mx)**2 + (p.y-my)**2;
+    if (d < bd){ bd = d; best = i; }
+  }
+  if (best < 0) return;
+  const lo = best - Math.round(rand(0.1,0.3)/DX), hi = best + Math.round(rand(0.1,0.3)/DX);
+  for (let i=Math.max(0,lo); i<=Math.min(N-1,hi); i++){ if (bins[i].slag){ bins[i].slag = 0; if (Math.random() < 0.35) spawnFlake(i); } }
+  chipSound(); updateBead(); chipProgress();
+}
+function chipProgress(){
+  let tot = 0, clean = 0;
+  for (const b of bins){ if (b.vol > 1e-7){ tot++; if (!b.slag) clean++; } }
+  const f = tot ? clean/tot : 1;
+  $('#chipBar').style.width = (f*100).toFixed(0) + '%';
+  $('#chipPct').textContent = Math.round(f*100) + '% clean';
+  if (f >= 0.97 && chipDone <= 0 && state.phase === 'chip') chipDone = 0.9;
+}
+$('#brushBtn').addEventListener('click', () => { bins.forEach(b => b.slag = 0); updateBead(); afterChip(); });
+$('#skipBtn').addEventListener('click', () => { toast('Skipping interpass cleaning: slag will be trapped under the next pass', 'bad', 'skip', 3000); afterChip(); });
+
+// ---------- Evaluation ----------
+function ranges(flags){
+  const out = []; let s = -1, gap = 0;
+  for (let i=0;i<=flags.length;i++){
+    const f = i < flags.length && flags[i];
+    if (f){ if (s < 0) s = i; gap = 0; }
+    else if (s >= 0){ gap++; if (gap > 2 || i === flags.length){ out.push([s, i-gap]); s = -1; gap = 0; } }
+  }
+  return out;
+}
+function evaluate(){
+  derive();
+  const i0 = isPipe() ? 0 : Math.round(0.25/DX), i1 = N - i0, n = i1 - i0, gr = isGr(), Lnom = gr ? 0 : state.fsize, U = underrunU(Lnom);
+  const F = {missing:[], under:[], undermin:[], over:[], profile:[], por:[], uc:[], cold:[], lof:[], inc:[], crack:[], rootf:[], burn:[], notch:[], rootx:[]};
+  const cnt = {}; Object.keys(F).forEach(k => cnt[k] = 0);
+  let legSum = 0, legN = 0, penSum = 0, maxRe = -9, minUf = 9, sizeMin = 9, ucMax = 0, ucMidN = 0, ucDeepN = 0;
+  let cvxWorst = -9, cvxAt = 0, cvxLim = 1/16, meltMax = 0, concMax = 0;
+  for (let i=0;i<N;i++){
+    const missing = gr ? D.A[i] < 0.012 : D.size[i] < 0.06;
+    const ucD = D.jA[i] >= 0 ? D.uc[i]*0.075 : 0;     // undercut depth estimate (in)
+    const lim = maxConvex(D.W[i]);
+    const fl = {missing,
+      under: !missing && (gr ? D.ufill[i] < -1/64 : D.size[i] < Lnom - 0.004),
+      undermin: !missing && !gr && D.size[i] < Lnom - U - 0.004,
+      over: !missing && gr && D.rein[i] > maxRein() + 0.002,
+      profile: !missing && (gr ? D.C[i] > 0.6 : D.cvx[i] > lim + 0.004),
+      por: !missing && D.por[i] > 0.35, uc: !missing && ucD > 1/32 + 0.002, cold: !missing && D.cold[i] > 0.4, lof: !missing && D.lof[i] > 0.4,
+      inc: !missing && D.inc[i] > 0.35, crack: !!bins[i].crack, rootf: !missing && gr && D.rp[i] < 0.03, burn: !missing && D.burn[i] > 0.35, notch: !missing && D.notch[i] > 0.25,
+      rootx: !missing && isPipe() && (D.rprot[i] > 1/8 + 0.002 || -D.rprot[i] > 1/16 + 0.002)};
+    for (const k in F) F[k].push(fl[k]);
+    if (i < i0 || i >= i1) continue;
+    for (const k in F) if (fl[k]) cnt[k]++;
+    if (!missing){
+      legN++; legSum += gr ? D.rein[i] : D.size[i]; penSum += gr ? D.rp[i] : D.pen[i];
+      if (gr){ maxRe = Math.max(maxRe, D.rein[i]); minUf = Math.min(minUf, D.ufill[i]); meltMax = Math.max(meltMax, D.rprot[i]); concMax = Math.max(concMax, -D.rprot[i]); }
+      else { sizeMin = Math.min(sizeMin, D.size[i]); if (D.cvx[i] - lim > cvxWorst){ cvxWorst = D.cvx[i] - lim; cvxAt = D.cvx[i]; cvxLim = lim; } }
+      ucMax = Math.max(ucMax, ucD); if (ucD > 1/16 + 0.002) ucDeepN++; else if (ucD > 1/32 + 0.002) ucMidN++;
+    }
+  }
+  const fr = k => cnt[k]/n, len = c => (c*DX).toFixed(1) + '″';
+  const weldLen = n*DX;
+  // visible piping porosity >= 1/32 in
+  const vis = pores.filter(q => poreVisible(q) && q.i >= i0 && q.i < i1 && 2*q.r >= 1/32);
+  let porMaxIn = 0;
+  for (let a=i0; a<i1; a+=2){ const x0 = binX(a); porMaxIn = Math.max(porMaxIn, vis.filter(q => binX(q.i) >= x0 && binX(q.i) < x0 + 1).reduce((s2,q) => s2 + 2*q.r, 0)); }
+  const porSum = vis.reduce((s2,q) => s2 + 2*q.r, 0);
+  const crackN = bins.reduce((a,b) => a + (b.crack ? 1 : 0), 0);
+  // ---- D1.1 Table 8.1 checklist ----
+  const chk = [];
+  const ck = (name, ok, meas, limit) => chk.push({name, ok, meas, limit});
+  ck('(1) Cracks', crackN === 0, crackN ? `${crackN} crater crack${crackN>1?'s':''}` : 'none', 'none, any size');
+  const fusBits = [cnt.cold ? `overlap ${len(cnt.cold)}` : '', cnt.burn ? `melt-through ${len(cnt.burn)}` : '', gr && cnt.rootf ? `${isPipe() ? 'incomplete penetration' : 'root'} ${len(cnt.rootf)}` : ''].filter(Boolean);
+  ck('(2) Weld/base-metal fusion', fusBits.length === 0, fusBits.join(' · ') || 'complete', 'complete; no overlap');
+  ck('(3) Crater cross section', cnt.missing === 0, cnt.missing ? `${len(cnt.missing)} not filled` : 'filled', 'full size');
+  if (gr){
+    ck('(4) Profile: reinforcement', maxRe <= maxRein() + 0.002, maxRe > -9 ? `max ${maxRe >= 0 ? '+' : ''}${maxRe.toFixed(3)}″` : '—', `≤ ${fr32(maxRein())}`);
+    ck('(4) Profile: underfill', cnt.under === 0, cnt.under ? `${fr32(minUf)} on ${len(cnt.under)}` : 'none', 'none');
+    if (isPipe()) ck('(5) Root surface (open root)', cnt.rootx === 0, `melt-through ${meltMax.toFixed(3)}″ · concavity ${concMax.toFixed(3)}″`, '≤ 1/8″ melt-through · ≤ 1/16″ concavity');
+  } else {
+    ck('(4) Profile: convexity', cnt.profile === 0, `max ${cvxAt.toFixed(3)}″ (limit there ${fr32(cvxLim)})`, '1/16″ face ≤ 5/16″; 1/8″ < 1″');
+    ck('(6) Undersized fillet', cnt.undermin === 0 && cnt.under <= 0.1*n, `${fr32(Lnom)} nominal · min ${sizeMin < 9 ? sizeMin.toFixed(3) : '—'}″ · under on ${Math.round(fr('under')*100)}%`, `−${fr32(U)} on ≤ 10% of length`);
+  }
+  ck('(7) Undercut', isPipe() ? (T <= 5/8 ? ucMidN + ucDeepN === 0 : ucDeepN === 0) : T < 1 ? (ucDeepN === 0 && ucMidN*DX <= 2) : ucDeepN === 0,
+     ucMax > 0.003 ? `max ≈${ucMax.toFixed(3)}″ · >1/32″ on ${len(ucMidN + ucDeepN)}` : 'none',
+     isPipe() ? (T <= 5/8 ? '1/32″ (tubular, wall ≤ 5/8″)' : '1/16″ (tubular)') : T < 1 ? '1/32″ (1/16″ on ≤ 2″ per 12″)' : '1/16″');
+  ck('(8) Piping porosity', gr ? vis.length === 0 : porMaxIn <= 3/8 && porSum <= 0.06*weldLen,
+     vis.length ? `${vis.length} pore${vis.length>1?'s':''} · Σ ${porSum.toFixed(2)}″ · worst inch ${porMaxIn.toFixed(2)}″` : 'none visible',
+     gr ? 'none (CJP butt joint)' : `Σ ≤ 3/8″ per inch, ≤ ${(0.06*weldLen).toFixed(2)}″ total`);
+  const vtAccept = chk.every(c => c.ok);
+  // ---- score ----
+  const st = state.st, tt = Math.max(st.t, 1e-3);
+  const zk = Object.keys(st.z);
+  const techFrac = st.t > 0 && zk.length ? zk.reduce((a,k) => a + st.z[k], 0)/(zk.length*tt) : 0;
+  const parts = [
+    {name:'Continuity & craters', max:20, v:20*(1 - fr('missing'))},
+    {name: gr ? 'Fill & reinforcement' : 'Fillet size (D1.1)', max:20, v:clamp(20*(1 - (gr ? fr('under') + fr('over') : 0.4*fr('under') + fr('undermin'))), 0, 20)},
+    {name: gr ? (isPipe() ? 'Root penetration & profile' : 'Root fusion') : 'Profile / convexity', max:15, v:clamp(15*(1 - (gr ? fr('rootf') + fr('rootx') : fr('profile'))), 0, 15)},
+    {name:'Fusion & bead tie-ins', max:15, v:clamp(15*(1 - fr('cold') - fr('lof') - 0.5*fr('notch') - fr('burn')), 0, 15)},
+    {name:'Discontinuities', max:20, v:clamp(20 - 40*fr('por') - 30*fr('uc') - 25*fr('inc') - 2*state.burnbacks - 2*state.sticks - 3*state.contams - 6*crackN - Math.max(0, state.spatter-15)/12, 0, 20)},
+    {name:'Technique (time in zone)', max:10, v:10*techFrac}
+  ];
+  let total = parts.reduce((a,q) => a + q.v, 0);
+  const safety = state.noHelmetTime > 0.3;
+  if (safety){ parts.push({name:'Safety: welded w/o helmet', max:0, v:-10}); total -= 10; }
+  total = clamp(Math.round(total), 0, vtAccept ? 100 : 69);
+  const avgPen = legN ? penSum/legN : 0;
+  const macroAccept = legN > 0 && fr('rootx') < 0.05 && fr('lof') < 0.05 && fr('inc') < 0.05 && (gr ? fr('rootf') < 0.05 : avgPen >= 0.03);
+  return {F, cnt, n, i0, i1, parts, total, vtAccept, macroAccept, chk, avgLeg: legN ? legSum/legN : 0, avgPen, techFrac, safety, gr,
+    avg:{sp:st.sp/tt, sd:Math.sqrt(Math.max(0, st.sp2/tt - (st.sp/tt)**2)), wa:st.wa/tt, ta:st.ta/tt, ct:st.ct/tt},
+    crackN, ht:st.ht/tt, pd:st.pd/tt, duty:st.feedT/tt, sagF:st.sagT/tt, porVis:vis.length, passesN:passes.filter(q => q.A.some(v => v > 0.002)).length,
+    z:{spd:(st.z.spd||0)/tt, wa:(st.z.wa||0)/tt, ta:(st.z.ta||0)/tt, ct:(st.z.ct||0)/tt, ht:(st.z.ht||0)/tt}};
+}
+
+let lastEval = null;
+function showInspection(R){
+  lastEval = R;
+  const gr = R.gr;
+  $('#inspSub').textContent = isPipe() ? `${posLabel()} · ${PIPES[state.pipe].name} (${fr32(T)} wall) · open-root V-groove (37.5° bevel, 1/16″ land, 1/8″ gap) · ${R.passesN} pass${R.passesN === 1 ? '' : 'es'}. Full circumference inspected (welder-qualification visual criteria).`
+    : (gr ? `${state.pos} · ${fr32(T)} V-groove on backing (22.5° bevels, ¼″ root opening)` : `${state.pos} · ${fr32(state.fsize)} fillet on ${fr32(T)} plate`) + ` · ${R.passesN} pass${R.passesN === 1 ? '' : 'es'}. First and last ¼″ excluded.`;
+  $('#critNote').textContent = isPipe() ? 'Welder-qualification visual criteria for pipe (open root, no backing), measured from the simulated weld profile. Classroom approximation: an inspector with gauges has the final word.'
+    : 'Statically loaded nontubular criteria, measured from the simulated weld profile. Classroom approximation: an inspector with gauges has the final word.';
+  $('#cutX').max = L.toFixed(2); $('#cutX').step = (L/160).toFixed(3);
+  $('#chartTitle').textContent = gr ? 'Weld face vs plate surface' : 'Effective fillet size along the weld';
+  $('#lgLegs').classList.toggle('hidden', gr); $('#lgFace').classList.toggle('hidden', !gr); $('#lgRoot').classList.toggle('hidden', !gr);
+  $('#lgBand').textContent = gr ? `0–${fr32(maxRein()).replace('″','')}″ reinforcement` : `${fr32(state.fsize).replace('″','')}″ nominal to +1/16″`;
+  $('#scoreV').textContent = R.total;
+  const g = R.total>=90?'A':R.total>=80?'B':R.total>=70?'C':R.total>=60?'D':'F';
+  const gc = R.total>=80?'var(--green)':R.total>=70?'var(--yellow)':'var(--red)';
+  $('#gradeV').textContent = g; $('#gradeV').style.color = gc; $('#gradeV').style.borderColor = gc;
+  const pname = isS() ? 'stick' : isT() ? 'TIG' : 'MIG';
+  let best = 0; try { const k = 'weldsim_best_'+state.process+'_'+state.pos+'_'+state.mode; best = +localStorage.getItem(k) || 0; if (R.total > best) localStorage.setItem(k, R.total); } catch(e){}
+  $('#bestV').innerHTML = R.total > best ? `<b style="color:var(--green)">New personal best!</b><br>${posLabel()} ${pname} ${state.mode}` : `Best (${posLabel()} ${pname} ${state.mode}): ${best}`;
+  $('#verdicts').innerHTML =
+    `<span class="pill ${R.vtAccept?'ok':'no'}">D1.1 VISUAL: ${R.vtAccept?'ACCEPT':'REJECT'}</span>` +
+    `<span class="pill ${R.macroAccept?'ok':'no'}">MACRO-ETCH: ${R.macroAccept?'ACCEPT':'REJECT'}</span>` +
+    (R.safety ? `<span class="pill no">SAFETY VIOLATION</span>` : '');
+  $('#capNote').textContent = R.vtAccept ? '' : 'A weld that fails D1.1 visual inspection is capped at 69.';
+  $('#d11').innerHTML = '<span class="h">Criterion</span><span class="h">Measured</span><span class="h">Limit</span><span class="h"></span>' +
+    R.chk.map(c => `<span>${c.name}</span><span class="mono" style="font-size:11.5px">${c.meas}</span><span style="color:var(--dim);font-size:11.5px">${c.limit}</span><span class="badge ${c.ok?'ok':'no'}">${c.ok?'PASS':'FAIL'}</span>`).join('');
+  $('#brk').innerHTML = R.parts.map(q => q.max ? `<span>${q.name}</span><div class="b"><i style="width:${(q.v/q.max*100).toFixed(0)}%"></i></div><span>${q.v.toFixed(1)}/${q.max}</span>`
+    : `<span style="color:var(--red)">${q.name}</span><div></div><span style="color:var(--red)">${q.v}</span>`).join('');
+
+  // discontinuities list
+  const fmtR = rs => rs.map(([a,b]) => `${(a*DX).toFixed(1)}–${((b+1)*DX).toFixed(1)}″`).join(', ');
+  const inEval = arr => arr.map((f,i) => f && i >= R.i0 && i < R.i1);
+  const items = [];
+  const add = (key, label, desc) => { const rs = ranges(inEval(R.F[key])); if (rs.length) items.push(`<li><b>${label}</b> at ${fmtR(rs)}. ${desc}</li>`); };
+  add('missing', 'Incomplete weld / unfilled crater', 'No weld metal, or far below size.');
+  if (gr){
+    add('under', 'Underfill', 'Weld face below the plate surface. Needs another pass.');
+    add('over', 'Excess reinforcement', `Cap more than ${fr32(maxRein())} above the plate.`);
+    add('rootf', isPipe() ? 'Incomplete penetration' : 'Incomplete root fusion', isPipe() ? 'The root pass didn\'t melt through the land to the inside of the pipe.' : 'The root pass didn\'t tie into the backing and root faces.');
+    add('rootx', 'Root surface out of limits', 'Inside the pipe: melt-through over 1/8″ or concavity (suck-back) over 1/16″.');
+  } else {
+    add('undermin', 'Undersized beyond allowed underrun', `Smaller than ${fr32(state.fsize)} − ${fr32(underrunU(state.fsize))}. Rejectable at any length.`);
+    add('under', 'Undersized (within underrun)', 'Allowed on up to 10% of the weld length.');
+    add('profile', 'Excess convexity', 'Face sits too far above the toe-to-toe line for its width.');
+  }
+  add('notch', 'Trapped valley between beads', 'A bead tied in at its edge over a deep valley. Split the layer and aim each bead into the valley.');
+  add('uc', 'Undercut', gr ? 'Groove melted into the plate at the cap toe.' : 'Groove melted into the plate at the toe.');
+  add('cold', 'Overlap / cold lap', 'Metal rolled onto the plate without fusing.');
+  add('burn', 'Melt-through', 'Too much heat for thin plate.');
+  add('por', 'Porosity', 'Gas pockets from poor shielding.');
+  add('lof', gr ? 'Lack of sidewall / inter-bead fusion (internal)' : 'Lack of fusion (internal)', 'Shows up only on the macro-etch.');
+  if (isT()) add('inc', 'Tungsten inclusion (internal)', 'Tungsten dipped into the puddle or touched by filler.');
+  else add('inc', 'Slag inclusion (internal)', 'Slag trapped in the weld from pushing, slow travel, low amps, or welding over uncleaned slag.');
+  if (R.crackN){ const cr = bins.map((b,i)=>b.crack?((i+0.5)*DX).toFixed(1)+'″':null).filter(Boolean); items.unshift(`<li><b style="color:var(--red)">Crater crack</b> at ${cr.join(', ')}. Cracks are rejectable anywhere. Taper off to fill the crater.</li>`); }
+  if (state.contams) items.push(`<li><b>${state.contams} tungsten contamination${state.contams>1?'s':''}</b>. Each one means stopping to regrind.</li>`);
+  if (state.sticks) items.push(`<li><b>${state.sticks} stuck electrode${state.sticks>1?'s':''}</b>. Arc too short or amps too low.</li>`);
+  if (state.burnbacks) items.push(`<li><b>${state.burnbacks} burnback${state.burnbacks>1?'s':''}</b>. Stickout too short.</li>`);
+  if (state.spatter > 15) items.push(`<li><b>Spatter</b>: ${state.spatter} balls on the coupon (needs cleanup).</li>`);
+  const rs = state.starts - state.pass; if (rs > 0) items.push(`<li><b>${rs} restart${rs>1?'s':''}</b>. Each one is a tie-in to inspect.</li>`);
+  $('#defs').innerHTML = items.length ? items.join('') : '<li style="color:var(--green)">None found. Clean weld!</li>';
+
+  // technique
+  const pct = v => Math.round(v*100) + '%';
+  const a = R.avg;
+  $('#tech').innerHTML = `
+    <span>Arc time · passes</span><span class="mono">${state.st.t.toFixed(1)} s · ${R.passesN}</span><span></span>
+    ${isT() ? `<span>Avg pedal · puddle heat</span><span class="mono">${Math.round(R.pd*100)}% · ${Math.round(R.ht*100)}%</span><span class="mono">${pct(R.z.ht)}</span>
+    <span>Filler dabs · feed time</span><span class="mono">${state.dabs.length} · ${Math.round(R.duty*100)}%</span><span></span>` : ''}
+    ${isS() ? `<span>Rods used</span><span class="mono">${state.rodChanges + 1}</span><span></span>` : ''}
+    <span>Travel speed (avg ± var.)</span><span class="mono">${a.sp.toFixed(1)} ± ${a.sd.toFixed(1)} ipm</span><span class="mono">${pct(R.z.spd)}</span>
+    <span>Work angle</span><span class="mono">${a.wa.toFixed(0)}°</span><span class="mono">${pct(R.z.wa)}</span>
+    <span>Travel angle</span><span class="mono">${Math.abs(a.ta).toFixed(0)}° ${a.ta>=0?'push':'drag'}</span><span class="mono">${pct(R.z.ta)}</span>
+    <span>${isG() ? 'CTWD' : 'Arc length'}</span><span class="mono">${a.ct.toFixed(2)}″</span><span class="mono">${pct(R.z.ct)}</span>
+    ${gr ? `<span>Avg reinforcement</span><span class="mono">${R.avgLeg>=0?'+':''}${R.avgLeg.toFixed(3)}″</span><span></span>` : `<span>Avg effective size · pen.</span><span class="mono">${R.avgLeg.toFixed(3)}″ · ${R.avgPen.toFixed(3)}″</span><span></span>`}
+    <span style="color:var(--dim);font-size:12px;grid-column:1/-1">Right column: time in the target zone (yellow counts half).</span>`;
+
+  // tips
+  const tips = [];
+  const vErr = state.volts - idealV(state.wfs);
+  const t = targets(), sm = isS(), tg = isT(), gm = isG(), E = spec(), aE = state.amps - recoAmps(), c = R.cnt;
+  if (R.safety) tips.push('Helmet down before every arc. Arc flash burns your eyes in seconds, and you can\'t feel it until hours later.');
+  if (R.crackN) tips.push('Crater crack: at every stop, fill the crater (TIG: roll off the pedal while adding a last dab; MIG/stick: pause or back-step briefly) before breaking the arc.');
+  if (c.notch > R.n*0.04) tips.push(`A bead bridged a deep valley at its edge, which traps slag or leaves unfused metal. When a layer gets wider than ${fr32(splitW())}, split it: aim one bead at each side (Z / C), overlapping about half a bead, then fill the middle.`);
+  if (!gr && state.fsize > singleMax() + 1e-6 && R.passesN < 2) tips.push(`A ${fr32(state.fsize)} fillet is bigger than the D1.1 prequalified single-pass max (${fr32(singleMax())}) for this process and position. Lay a root in the corner, then split the cap: one bead toward the flange (C), one toward the web (Z).`);
+  if (!gr && c.undermin) tips.push(`Parts of the fillet are smaller than ${fr32(state.fsize)} − ${fr32(underrunU(state.fsize))}, which D1.1 rejects at any length. Slow down, add a pass, or pick a smaller nominal size.`);
+  else if (!gr && c.under > R.n*0.1) tips.push(`The fillet runs a little under ${fr32(state.fsize)} on ${Math.round(c.under/R.n*100)}% of its length; D1.1 allows that on only 10%.`);
+  if (!gr && c.profile) tips.push('Too convex for its face width. Bring the voltage or heat up a touch, don\'t crowd the travel speed, and on multi-pass welds overlap beads so the face stays flat.');
+  if (c.burn) tips.push(`Melt-through on ${fr32(T)} plate. Turn down the wire speed or amps, travel faster, and aim more at the thicker side.`);
+  if (gr && c.under > 0 && c.missing === 0) tips.push('The groove isn\'t full yet (underfill). Press N for another pass. The cap should sit flush to ⅛″ above the plate and lap past both bevel edges.');
+  if (gr && c.over > R.n*0.1) tips.push(`The cap is taller than ${fr32(maxRein())}. Travel a little faster on the last pass, or stop one pass sooner.`);
+  if (isPipe() && c.rootx > 0) tips.push('Root inside the pipe is out of limits. Near 12 o\'clock, too much heat pushes melt-through; near 6 o\'clock (overhead), it sucks back into concavity. Ease the heat at the bottom and the top, and keep a tight arc and steady keyhole.');
+  if (isPipe() && c.rootf > R.n*0.05) tips.push('Incomplete penetration in the root. Keep a small keyhole open ahead of the puddle and push the arc into the gap. The land must melt through to the inside.');
+  if (!isPipe() && gr && c.rootf > R.n*0.05) tips.push('The root pass didn\'t fuse into the backing. Keep the arc on the leading edge of the puddle, slow down a touch, and make sure the root has enough heat.');
+  if (T >= 0.75 && c.lof > R.n*0.05) tips.push(`${fr32(T)} plate pulls heat away fast. Use the higher starting settings for thick plate, and keep the arc on the leading edge so every pass fuses.`);
+  if (tg){
+    if (state.contams) tips.push(`You contaminated the tungsten ${state.contams} time${state.contams>1?'s':''}. Keep about 3/32″ of arc, and touch the filler only to the leading edge of the puddle.`);
+    if (R.ht < 0.8) tips.push(`The puddle ran cold (heat averaged ${Math.round(R.ht*100)}%). Wait for it to wet out before dabbing, add pedal, or slow down.`);
+    else if (R.ht > 1.15) tips.push(`The puddle ran hot (heat averaged ${Math.round(R.ht*100)}%). Speed up or back off the pedal.`);
+    if (R.duty < 0.18 && c.missing < R.n*0.5) tips.push(`You fed filler only ${Math.round(R.duty*100)}% of the time. Dab more often to build full size.`);
+    if (state.argon < 12 || state.argon > 35) tips.push(`Argon at ${state.argon} CFH is ${state.argon<12?'too low':'too high (turbulence)'}. Set 15–25 CFH.`);
+  }
+  if (sm && Math.abs(aE) > 12) tips.push(`${state.amps} A is ${aE>0?'hot':'cold'} for ⅛″ ${state.rod} here. Start near ${recoAmps()} A (range ${E.lo}–${E.hi}).`);
+  if (sm && a.ct > 0.16) tips.push(`Arc length averaged ${a.ct.toFixed(3)}″. Keep feeding the rod to hold about ⅛″.`);
+  if (sm && state.sticks > 1) tips.push(`You stuck the rod ${state.sticks} times. Hold the arc a hair longer, or bump the amps 5–10 A.`);
+  if (sm && a.ta > 0) tips.push('You pushed the rod. With stick, always drag (5–15°) so slag stays behind the puddle.');
+  if (gm && (state.gas < 18 || state.gas > 45)) tips.push(`Gas at ${state.gas} CFH is ${state.gas<18?'too low':'too high'}. Set 25–35 CFH for 75/25.`);
+  if (gm && Math.abs(vErr) > 1.5) tips.push(`${state.volts.toFixed(1)} V is ${vErr>0?'high':'low'} for ${state.wfs} ipm. Try about ${idealV(state.wfs).toFixed(1)} V.`);
+  if (R.sagF > 0.15) tips.push(`The puddle sagged ${Math.round(R.sagF*100)}% of the time. In ${state.pos}, turn the heat down, keep a tight arc, and travel steadily so each puddle freezes.`);
+  if (a.sp < t.sg[0] - 0.5) tips.push(`You averaged ${a.sp.toFixed(1)} ipm, which is too slow for this pass. Aim for ${t.sg[0]}–${t.sg[1]} ipm.`);
+  else if (a.sp > t.sg[1] + 0.5) tips.push(`You averaged ${a.sp.toFixed(1)} ipm, which is too fast. Slow down to ${t.sg[0]}–${t.sg[1]} ipm.`);
+  if (a.sd > 4) tips.push(`Speed varied by ±${a.sd.toFixed(1)} ipm. Brace your hand and move your whole arm.`);
+  if (gr && Math.abs(a.wa - 90) > 6) tips.push(`Work angle averaged ${a.wa.toFixed(0)}°. Keep the torch square (90°) to the groove; steer split beads with Z / C instead.`);
+  if (!gr && Math.abs(a.wa - 45) > 6) tips.push(`Work angle averaged ${a.wa.toFixed(0)}°. Bisect the joint at 45° for the root; small changes help steer split cap beads.`);
+  const ranOut = sm && state.rodLen <= STUB + 0.01 && c.missing > 0;
+  if (ranOut) tips.push('Your rod burned down to a stub before the STOP mark. Press R for a fresh rod, chip the crater, and restrike just ahead of it.');
+  if (isPipe() && c.missing > 0 && SEGS.length > 1) tips.push('Weld both halves of every pass: after the first half, press V to walk around and weld the far side from the bottom up, overlapping your start.');
+  else if (!ranOut && c.missing > 0) tips.push('Weld the full length, START mark to STOP mark, on every pass. Restart ½″ ahead of a crater and travel back into it.');
+  if (!tips.length) tips.push('Excellent run. Try Test mode next, or step up to a thicker plate and a multi-pass weld.');
+  $('#tips').innerHTML = tips.slice(0,5).map(x => `<li>${x}</li>`).join('');
+
+  let worst = Math.round(N/2);
+  for (let i=R.i0;i<R.i1;i++){ if (R.F.lof[i] || R.F.notch[i] || R.F.uc[i] || R.F.por[i] || R.F.inc[i] || R.F.rootf[i] || R.F.undermin[i]) { worst = i; break; } }
+  $('#cutX').value = (worst*DX + DX/2).toFixed(2);
+  drawLegChart(); drawMacro();
+}
+
+function drawLegChart(){
+  const R = lastEval; if (!R) return;
+  const cv = $('#legChart'), g = cv.getContext('2d'), w = cv.width, h = cv.height;
+  g.clearRect(0,0,w,h);
+  const gr = R.gr, Ln = state.fsize;
+  const padL = 74, padR = 14, padT = 14, padB = 106, cw = w - padL - padR, ch = h - padT - padB;
+  const ymin = gr ? -Math.min(0.6, T + 0.05) : 0, ymx = gr ? 0.25 : Math.max(0.45, Ln*1.6);
+  const X = i => padL + (i+0.5)/N*cw, Y = v => padT + ch - (v - ymin)/(ymx - ymin)*ch;
+  g.fillStyle = 'rgba(61,220,132,.16)';
+  if (gr) g.fillRect(padL, Y(maxRein()), cw, Y(0) - Y(maxRein())); else g.fillRect(padL, Y(Ln + 1/16), cw, Y(Ln) - Y(Ln + 1/16));
+  g.strokeStyle = '#2a3039'; g.lineWidth = 1; g.font = '20px JetBrains Mono, monospace'; g.fillStyle = '#9aa3ae'; g.textAlign = 'right';
+  const step = (ymx - ymin) > 0.6 ? 0.2 : 0.1;
+  for (let v = Math.ceil(ymin/step)*step; v <= ymx + 1e-6; v += step){ g.beginPath(); g.moveTo(padL, Y(v)); g.lineTo(w-padR, Y(v)); g.stroke(); g.fillText(v.toFixed(1), padL-8, Y(v)+6); }
+  g.textAlign = 'center';
+  for (let k=0;k<=8;k++){ g.fillText((k/8*L).toFixed(L > 9 ? 1 : 0)+'″', padL + k/8*cw, h - 8); }
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(padL, padT, R.i0/N*cw, ch); g.fillRect(padL + R.i1/N*cw, padT, (N-R.i1)/N*cw, ch);
+  const line = (arr, col, lw=3) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); for (let i=0;i<N;i++){ const y = Y(clamp(arr[i], ymin, ymx)); i ? g.lineTo(X(i), y) : g.moveTo(X(i), y); } g.stroke(); };
+  if (gr){
+    g.strokeStyle = '#6b7480'; g.setLineDash([4,4]); g.beginPath(); g.moveTo(padL, Y(0)); g.lineTo(w-padR, Y(0)); g.stroke(); g.setLineDash([]);
+    line(Array.from({length:N}, (_,i) => D.ufill[i] < -1/64 ? D.ufill[i] : D.rein[i]), '#7cc4ff');
+  } else {
+    g.strokeStyle = '#ff5252'; g.setLineDash([6,5]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(padL, Y(Ln - underrunU(Ln))); g.lineTo(w-padR, Y(Ln - underrunU(Ln))); g.stroke(); g.setLineDash([]);
+    line(D.Lb, 'rgba(255,154,60,.6)', 1.5); line(D.Lw, 'rgba(124,196,255,.6)', 1.5); line(D.size, '#e7eaee', 3);
+  }
+  const rows = [['missing','#5b6573'],['por','#b388ff'],['uc','#ff5252'],['cold','#ffc93c'],['lof','#ff7ab6'],['inc','#a1887f'],['crack','#ffffff'],['rootf','#4dd0e1'],['notch','#c0c6ce'],['burn','#ff9100'],['rootx','#80deea']];
+  const sy = h - padB + 6, rh = 5.5;
+  rows.forEach(([k,col], r) => { g.fillStyle = col; for (let i=0;i<N;i++) if (R.F[k][i]) g.fillRect(X(i)-cw/N/2, sy + r*rh, cw/N + 0.5, rh-1); });
+  const cx = padL + (+$('#cutX').value)/L*cw;
+  g.strokeStyle = '#ff5252'; g.setLineDash([6,5]); g.lineWidth = 2; g.beginPath(); g.moveTo(cx, padT); g.lineTo(cx, padT+ch); g.stroke(); g.setLineDash([]);
+  g.save(); g.translate(14, padT + ch/2); g.rotate(-Math.PI/2); g.fillStyle = '#9aa3ae'; g.textAlign='center'; g.font = '19px Barlow, sans-serif'; g.fillText(gr ? 'face (in)' : 'size (in)', 0, 0); g.restore();
+}
+
+function drawMacro(){
+  const R = lastEval; if (!R) return;
+  const xv = +$('#cutX').value; $('#cutV').textContent = xv.toFixed(2) + '″';
+  const i = clamp(Math.floor(xv/DX), 0, N-1), gr = R.gr;
+  cutPlane.rotation.set(0, Math.PI/2, 0);
+  if (gr) cutPlane.position.set(X0 + xv, T*0.4, 0); else cutPlane.position.set(X0 + xv, ROOT_Y + 0.35, ROOT_Z + 0.35);
+  bendObj(cutPlane);
+  const cv = $('#macro'), g = cv.getContext('2d'), w = cv.width, h = cv.height;
+  g.fillStyle = '#0f1216'; g.fillRect(0,0,w,h);
+  const ext = gr ? {z0:-(G_TOPH+0.5), z1:G_TOPH+0.5, y0:-0.45, y1:T+0.34}
+                 : {z0:-T/2-0.3, z1:ROOT_Z + Math.max(0.55, D.Lb[i] + 0.35), y0:-0.06, y1:ROOT_Y + Math.max(0.55, D.Lw[i] + 0.3)};
+  const Sc = Math.min((w-40)/(ext.z1-ext.z0), (h-40)/(ext.y1-ext.y0));
+  const PX = z => 20 + (z - ext.z0)*Sc, PY = y => h - 20 - (y - ext.y0)*Sc;
+  const poly = (pts, fill, stroke) => { g.beginPath(); pts.forEach(([z,y],k) => k ? g.lineTo(PX(z),PY(y)) : g.moveTo(PX(z),PY(y))); g.closePath(); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); } };
+  const steel = () => { const gr2 = g.createLinearGradient(0, 0, 0, h); gr2.addColorStop(0,'#9a9ea3'); gr2.addColorStop(1,'#83878c'); return gr2; };
+  if (gr){
+    poly([[ext.z0,0],[-G_GAP/2,0],[-G_GAP/2,LAND],[-G_TOPH,T],[ext.z0,T]], steel(), '#555a60');
+    poly([[G_GAP/2,0],[ext.z1,0],[ext.z1,T],[G_TOPH,T],[G_GAP/2,LAND]], steel(), '#555a60');
+    if (!isPipe()) poly([[-0.5,-0.375],[0.5,-0.375],[0.5,0],[-0.5,0]], steel(), '#555a60');
+  } else {
+    poly([[ext.z0,0],[ext.z1,0],[ext.z1,T],[ext.z0,T]], steel(), '#555a60');
+    poly([[-T/2,T],[T/2,T],[T/2,ext.y1],[-T/2,ext.y1]], steel(), '#555a60');
+  }
+  const tmp = new Float32Array(M), hist = [];
+  replayInto(tmp, 0, i, passes.length, hist);
+  let jA = -1, jB = -1; for (let j=0;j<M;j++) if (tmp[j] > FLOOR[j] + 0.004){ if (jA < 0) jA = j; jB = j; }
+  g.font = '22px Barlow, sans-serif'; g.textAlign = 'left';
+  if (jA < 0){ g.fillStyle = '#ff8a8a'; g.fillText('No weld metal at this location', 30, 40); drawLegChart(); return; }
+  const loc = (u, hh) => { const q = toLocal(u, hh); return [q.z, q.y]; };
+  const lof = D.lof[i] > 0.4, rootf = gr && D.rp[i] < 0.03, por = D.por[i] > 0.35, inc = D.inc[i] > 0.35, uc = D.uc[i] > 0.35, notch = D.notch[i] > 0.25;
+  const pen = lof ? 0.006 : clamp(D.pen[i]*0.8, 0.012, 0.15);
+  const fusion = (grow) => {
+    const pts = [];
+    for (let j=Math.max(0,jA-1); j<=Math.min(M-1,jB+1); j++) pts.push(loc(uAt(j), Math.max(tmp[j], FLOOR[j]) + grow*0.4));
+    for (let j=Math.min(M-1,jB+1); j>=Math.max(0,jA-1); j--){
+      const u = uAt(j); let d = pen + grow;
+      if (gr && Math.abs(u) < G_GAP/2 + (isPipe() ? 0.04 : 0)){
+        if (isPipe()){ const rp2 = rootf ? -0.03 : D.rprot[i], q = Math.abs(u)/(G_GAP/2 + 0.04); d = Math.max(-0.08, rp2*(1 - q*q)) + grow; }
+        else d = (rootf ? 0.004 : Math.min(0.12, D.rp[i]*0.9)) + grow;
+      }
+      pts.push(loc(u, FLOOR[j] - d));
+    }
+    return pts;
+  };
+  poly(fusion(0.04), 'rgba(118,104,86,.75)');
+  const wg = g.createLinearGradient(0, PY(ext.y1), 0, PY(ext.y0)); wg.addColorStop(0,'#5c5146'); wg.addColorStop(1,'#3f372f');
+  poly(fusion(0), wg);
+  // pass boundaries (each bead in the stack)
+  g.strokeStyle = 'rgba(15,12,9,.6)'; g.lineWidth = 2;
+  hist.slice(0, -1).forEach(arr => { g.beginPath(); let on = false; for (let j=0;j<M;j++){ if (arr[j] > FLOOR[j] + 0.004){ const [z,y] = loc(uAt(j), arr[j]); on ? g.lineTo(PX(z),PY(y)) : g.moveTo(PX(z),PY(y)); on = true; } } g.stroke(); });
+  g.strokeStyle = '#000'; g.lineWidth = 3;
+  if (lof){ const side = D.b[i] >= 0 ? jB : jA; const mid = Math.round((jA + jB)/2); g.beginPath(); const p1 = loc(uAt(side), FLOOR[side]), p2 = loc(uAt(Math.round((side*2 + mid)/3)), FLOOR[Math.round((side*2+mid)/3)]); g.moveTo(PX(p1[0]),PY(p1[1])); g.lineTo(PX(p2[0]),PY(p2[1])); g.stroke(); }
+  if (rootf){ const p1 = loc(-G_GAP/2, 0.003), p2 = loc(G_GAP/2, 0.003); g.beginPath(); g.moveTo(PX(p1[0]),PY(p1[1])); g.lineTo(PX(p2[0]),PY(p2[1])); g.stroke(); }
+  if (notch){ g.fillStyle = '#0b0b0c'; [jA + Math.round((jB-jA)*0.2), jB - Math.round((jB-jA)*0.2)].forEach(j => { const hh = FLOOR[j] + (tmp[j] - FLOOR[j])*0.55, [z,y] = loc(uAt(j), hh); g.beginPath(); g.moveTo(PX(z)-6, PY(y)); g.lineTo(PX(z)+6, PY(y)-3); g.lineTo(PX(z)+2, PY(y)+6); g.closePath(); g.fill(); }); }
+  const inside = () => { const j = jA + Math.floor(Math.random()*(jB - jA + 1)); const [z,y] = loc(uAt(j), FLOOR[j] + (tmp[j] - FLOOR[j])*rand(0.2, 0.8)); return [PX(z), PY(y)]; };
+  const nPore = pores.filter(q => Math.abs(q.i - i) <= 1).length;
+  if (por || nPore){ g.fillStyle = '#0b0b0c'; for (let k=0;k<Math.max(3, Math.min(8, nPore));k++){ const [x,y] = inside(); g.beginPath(); g.arc(x, y, rand(3,7), 0, Math.PI*2); g.fill(); } }
+  if (inc){ g.fillStyle = isT() ? '#f2f2ee' : '#1b140e'; for (let k=0;k<3;k++){ const [x,y] = inside(), r = rand(5,10); g.beginPath(); g.moveTo(x-r, y); g.lineTo(x+r*0.3, y-r*0.7); g.lineTo(x+r, y+r*0.2); g.lineTo(x-r*0.2, y+r*0.6); g.closePath(); g.fill(); } }
+  if (uc){ g.fillStyle = '#0f1216'; [jA, jB].forEach((j, e) => { if (!gr && (posN() === 2 || posN() === 4) && e === 0) return; const u = uAt(j) + (e ? -1 : 1)*DU*0.6; const [z,y] = loc(u, floorF(u)); g.beginPath(); g.arc(PX(z), PY(y), 6, 0, Math.PI*2); g.fill(); }); }
+  // dimensions & notes
+  g.font = '600 20px JetBrains Mono, monospace'; g.textAlign = 'right';
+  if (gr){
+    const rein = D.ufill[i] < -1/64 ? D.ufill[i] : D.rein[i];
+    g.fillStyle = rein >= -1/64 && rein <= maxRein() + 0.002 ? '#7ef0b0' : '#ff8a8a';
+    g.fillText(rein >= 0 ? `reinforcement +${rein.toFixed(3)}″` : `underfill ${rein.toFixed(3)}″`, w - 22, 70);
+    if (isPipe()){ const rp2 = D.rprot[i], okR = !rootf && rp2 <= 1/8 + 0.002 && -rp2 <= 1/16 + 0.002;
+      g.fillStyle = okR ? '#7cc4ff' : '#ff8a8a';
+      g.fillText(rootf ? 'root: INCOMPLETE PENETRATION' : rp2 >= 0 ? `root melt-through ${rp2.toFixed(3)}″` : `root concavity ${(-rp2).toFixed(3)}″`, w - 22, h - 30);
+      g.fillStyle = '#9aa3ae'; g.font = '18px Barlow'; g.textAlign = 'left'; g.fillText('inside of pipe ↓', PX(-0.3), PY(-0.25)); g.textAlign = 'right'; g.font = '600 20px JetBrains Mono, monospace';
+    } else { g.fillStyle = rootf ? '#ff8a8a' : '#7cc4ff'; g.fillText(`root fusion ${rootf ? 'NONE' : D.rp[i].toFixed(3) + '″'}`, w - 22, h - 30); }
+  } else {
+    const ok = D.size[i] >= state.fsize - underrunU(state.fsize) - 0.004;
+    g.fillStyle = ok ? '#7ef0b0' : '#ff8a8a'; g.fillText(`effective size ${D.size[i].toFixed(3)}″ (${fr32(state.fsize)} nominal)`, w - 22, 70);
+    g.fillStyle = D.cvx[i] <= maxConvex(D.W[i]) + 0.004 ? '#c9ced4' : '#ff8a8a'; g.fillText(`convexity ${D.cvx[i].toFixed(3)}″ · face ${D.W[i].toFixed(2)}″`, w - 22, 96);
+    g.fillStyle = '#ff9a3c'; g.fillText(`flange leg ${D.Lb[i].toFixed(3)}″`, w - 22, h - 56);
+    g.fillStyle = '#7cc4ff'; g.fillText(`web leg ${D.Lw[i].toFixed(3)}″`, w - 22, h - 30);
+  }
+  g.font = '19px Barlow, sans-serif'; g.fillStyle = '#c9ced4';
+  const notes = [`${hist.filter((q2,k) => passes[k].A[i] > 0.002).length} bead${hist.length > 1 ? 's' : ''} at this cut`];
+  if (lof) notes.push(gr ? 'lack of sidewall fusion' : 'lack of fusion'); if (notch) notes.push('trapped valley'); if (por) notes.push('porosity'); if (inc) notes.push(isT() ? 'tungsten inclusion' : 'slag inclusion'); if (uc) notes.push('undercut'); if (bins[i].crack) notes.push('CRATER CRACK'); if (D.burn[i] > 0.35) notes.push('melt-through');
+  const nt = notes.join(' · '), tw = Math.max(g.measureText(nt).width, 200);
+  g.fillStyle = 'rgba(15,18,22,.85)'; g.fillRect(w - 34 - tw, 10, tw + 24, 36); g.fillStyle = '#c9ced4'; g.fillText(nt, w - 22, 34);
+  g.textAlign = 'left';
+  drawLegChart();
+}
+$('#cutX').addEventListener('input', drawMacro);
+
+// ---------- Setup UI ----------
+function applyReco(){
+  T = isPipe() ? PIPES[state.pipe].t : state.thick;
+  state.wfs = recoWfs(); state.volts = r1(idealV(state.wfs)); state.amps = recoAmps(); state.tigMax = recoTig();
+}
+function syncSetup(){
+  const sm = isS(), E = spec();
+  document.querySelectorAll('#posSeg button').forEach(b => b.classList.toggle('on', b.dataset.pos === state.pos));
+  const t = targets();
+  document.querySelectorAll('.spdT').forEach(e => e.textContent = `${t.sg[0]}–${t.sg[1]} ipm`);
+  document.querySelectorAll('.dirT').forEach(e => e.textContent = posN() === 3 ? 'bottom → top' : 'left → right');
+  document.querySelectorAll('#thkSeg button').forEach(b => b.classList.toggle('on', +b.dataset.t === state.thick));
+  document.querySelectorAll('#fsSeg button').forEach(b => b.classList.toggle('on', +b.dataset.f === state.fsize));
+  $('#fsWrap').classList.toggle('hidden', isGr());
+  $('#pipeWrap').classList.toggle('hidden', !isPipe()); $('#thkWrap').classList.toggle('hidden', isPipe());
+  document.querySelectorAll('#pipeSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === state.pipe));
+  const np = fillPasses();
+  const d11 = isPipe() ? `${PIPES[state.pipe].name}, ${fr32(T)} wall: open root, plan about <b>${np} passes</b> (${np > 2 ? 'root, fill, cap' : 'root, then cap'}). D1.1 welder-qualification visual: reinforcement ≤ 1/8″, undercut ≤ 1/32″, root melt-through ≤ 1/8″, concavity ≤ 1/16″.`
+    : isGr() ? `${fr32(state.thick)} plates · plan about <b>${np} passes</b>. D1.1: split any layer wider than ${fr32(splitW())}; reinforcement ≤ ${fr32(maxRein())}.`
+    : `D1.1 minimum fillet on ${fr32(state.thick)} plate: <b>${fr32(minFillet(state.thick))}</b>. Max prequalified single-pass fillet for ${isS() ? 'SMAW' : isT() ? 'GTAW (not prequalified; using 5/16″)' : 'GMAW'} in ${state.pos}: <b>${fr32(singleMax())}</b> → <b>${np} pass${np > 1 ? 'es' : ''}</b>.${state.fsize < minFillet(state.thick) ? ' <span style="color:var(--yellow)">This size is under the D1.1 minimum for this plate.</span>' : ''}`;
+  $('#posInfo').innerHTML = `<b>${posLabel()}</b>: ${POS_INFO[state.pos]}<br>${d11}<br>Target travel per pass: <b>${t.sg[0]}–${t.sg[1]} ipm</b>. Picking a position, plate or size loads starting settings.`;
+  $('#gmawReco').textContent = `${recoWfs()} ipm · ${r1(idealV(recoWfs())).toFixed(1)} V · 30 CFH`;
+  $('#tigReco').textContent = `${recoTig()} A max (pedal ≈85% → ${Math.round(tigIdeal())} A) · 20 CFH`;
+  document.querySelectorAll('#procSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === state.process));
+  document.querySelectorAll('#rodSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === state.rod));
+  const tg = isT();
+  $('#gmawCtl').classList.toggle('hidden', !isG()); $('#smawCtl').classList.toggle('hidden', !sm); $('#gtawCtl').classList.toggle('hidden', !tg);
+  $('#howG').classList.toggle('hidden', !isG()); $('#howS').classList.toggle('hidden', !sm); $('#howT').classList.toggle('hidden', !tg);
+  $('#tigMax').value = state.tigMax; $('#tigMaxV').textContent = state.tigMax + ' A';
+  $('#argon').value = state.argon; $('#argonV').textContent = state.argon + ' CFH';
+  const tp = Math.round(tigIdeal()/state.tigMax*100), lowMax = state.tigMax < tigIdeal()*1.03;
+  $('#tigHint').textContent = lowMax ? `Full pedal only gives ${state.tigMax} A. That's thin for ⅜″ steel in ${state.pos}, so expect a cold puddle.` : tp < 60 ? `Lots of headroom, but you'll weld at only ~${tp}% pedal (touchy control).` : `Good. You'll be around ${tp}% pedal for ~${Math.round(tigIdeal())} A.`;
+  $('#tigHint').style.color = lowMax || tp < 60 ? 'var(--yellow)' : 'var(--green)';
+  $('#argonHint').style.color = state.argon < 12 || state.argon > 35 ? 'var(--yellow)' : '';
+  $('#amps').value = state.amps; $('#ampsV').textContent = state.amps + ' A';
+  $('#smawReco').textContent = `⅛″ ${state.rod} at ${recoAmps()} A for ${state.pos}`;
+  const ae = state.amps - recoAmps();
+  $('#ampsHint').textContent = Math.abs(ae) <= 10 ? `Good for ⅛″ ${state.rod} in ${state.pos} (typical ${E.lo}–${E.hi} A).`
+    : ae > 0 ? `Hot for ⅛″ ${state.rod}: undercut, spatter, overheated rod.` : `Cold for ⅛″ ${state.rod}: sticking, cold lap, slag inclusions.`;
+  $('#ampsHint').style.color = Math.abs(ae) <= 10 ? 'var(--green)' : 'var(--yellow)';
+  $('#wfs').value = state.wfs; $('#volts').value = state.volts; $('#gas').value = state.gas;
+  $('#wfsV').textContent = state.wfs + ' ipm';
+  $('#voltsV').textContent = state.volts.toFixed(1) + ' V';
+  $('#gasV').textContent = state.gas + ' CFH';
+  $('#ampV').textContent = `≈ ${Math.round(ampsFor(state.wfs,0.5))} A at ½″ CTWD. More wire = bigger bead at the same travel speed.`;
+  const e = state.volts - idealV(state.wfs);
+  $('#voltHint').textContent = Math.abs(e) <= 1 ? `Good match for ${state.wfs} ipm (sweet spot ≈ ${idealV(state.wfs).toFixed(1)} V).`
+    : e > 0 ? `High for ${state.wfs} ipm (≈ ${idealV(state.wfs).toFixed(1)} V): flat bead, undercut, spatter.` : `Low for ${state.wfs} ipm (≈ ${idealV(state.wfs).toFixed(1)} V): stubbing, ropey bead, cold lap.`;
+  $('#voltHint').style.color = Math.abs(e) <= 1 ? 'var(--green)' : 'var(--yellow)';
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === state.mode));
+  let bp=0, bt=0; try { bp = +localStorage.getItem('weldsim_best_'+state.process+'_'+state.pos+'_practice')||0; bt = +localStorage.getItem('weldsim_best_'+state.process+'_'+state.pos+'_test')||0; } catch(e){}
+  $('#bestLine').textContent = (bp||bt) ? `Your best (${state.pos} ${sm?'stick':tg?'TIG':'MIG'}): Practice ${bp} · Test ${bt}` : '';
+  drawDisplay();
+}
+$('#wfs').addEventListener('input', e => { state.wfs = +e.target.value; syncSetup(); });
+$('#volts').addEventListener('input', e => { state.volts = +e.target.value; syncSetup(); });
+$('#gas').addEventListener('input', e => { state.gas = +e.target.value; syncSetup(); });
+$('#amps').addEventListener('input', e => { state.amps = +e.target.value; syncSetup(); });
+$('#tigMax').addEventListener('input', e => { state.tigMax = +e.target.value; syncSetup(); });
+$('#argon').addEventListener('input', e => { state.argon = +e.target.value; syncSetup(); });
+$('#recoBtnT').addEventListener('click', () => { state.tigMax = recoTig(); state.argon = 20; syncSetup(); });
+$('#recoBtnS').addEventListener('click', () => { state.amps = recoAmps(); syncSetup(); });
+document.querySelectorAll('#posSeg button').forEach(b => b.addEventListener('click', () => { state.pos = b.dataset.pos; applyReco(); applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
+const defFillet = t => t <= 0.1875 ? 0.1875 : t <= 0.375 ? 0.25 : t <= 0.5 ? 0.3125 : t <= 0.75 ? 0.375 : 0.5;
+document.querySelectorAll('#thkSeg button').forEach(b => b.addEventListener('click', () => { state.thick = +b.dataset.t; state.fsize = defFillet(state.thick); applyReco(); applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
+document.querySelectorAll('#pipeSeg button').forEach(b => b.addEventListener('click', () => { state.pipe = b.dataset.p; applyReco(); applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
+document.querySelectorAll('#fsSeg button').forEach(b => b.addEventListener('click', () => { state.fsize = +b.dataset.f; applyReco(); syncSetup(); }));
+document.querySelectorAll('#procSeg button').forEach(b => b.addEventListener('click', () => { state.process = b.dataset.p; applyReco(); syncSetup(); }));
+document.querySelectorAll('#rodSeg button').forEach(b => b.addEventListener('click', () => { state.rod = b.dataset.r; state.amps = recoAmps(); syncSetup(); }));
+$('#recoBtn').addEventListener('click', () => { state.wfs = recoWfs(); state.volts = r1(idealV(state.wfs)); state.gas = 30; syncSetup(); });
+document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => { state.mode = b.dataset.m; syncSetup(); }));
+$('#helmetChk').addEventListener('change', e => state.helmet = e.target.checked);
+$('#soundChk').addEventListener('change', e => state.sound = e.target.checked);
+$('#startBtn').addEventListener('click', startWeld);
+$('#resumeBtn').addEventListener('click', resumeGame);
+$('#restartBtn').addEventListener('click', startWeld);
+$('#settingsBtn').addEventListener('click', () => { setPhase('setup'); syncSetup(); });
+$('#finishBtn').addEventListener('click', finishWeld);
+$('#againBtn').addEventListener('click', startWeld);
+$('#setBtn2').addEventListener('click', () => { setPhase('setup'); syncSetup(); });
+syncSetup();
+
+// ---------- Main loop ----------
+let last = performance.now();
+let idleT = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, Math.max(0.001, (now - last)/1000)); last = now;
+  if (state.phase === 'setup'){ idleT += dt; camGoal.theta = POSCAM[state.pos].theta + Math.sin(idleT*0.15)*0.5; }
+  updateCamera(dt);
+  if (state.phase === 'weld') updateWeld(dt);
+  else if (state.phase === 'paused') placeTorch();
+  updateEffects(dt);
+  renderer.render(scene, camera);
+}
+applyPosition();
+Object.assign(cam, presetFor(1)); Object.assign(camGoal, presetFor(1));
+setPhase('setup');
+updateBead();
+placeTorch();
+requestAnimationFrame(frame);
+
+// test hook
+window.__weld = {PIPE, passArea, depRate, get SEGS(){return SEGS}, seg, applyRoll, get passes(){return passes}, SURF, measure, mapB, spMid, targets, aimY, aimZ, nextPass, applyPosition, setPreset, keys, chipAt, goInspect, slag, state, get bins(){return bins}, D, mouse, finishWeld, startWeld, evaluate, mapMouse, toScreen, updateWeld, updateEffects, updateCamera, X0, X1, ROOT_Y, ROOT_Z};
+})();
+</script>
+</body>
+</html>
