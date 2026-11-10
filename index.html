@@ -57,7 +57,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .posGrid button.on{border-color:var(--orange);background:#2a1d10;color:#ffc58c}
 #passNow{margin-top:8px;font-size:12.5px;color:var(--dim);line-height:1.35}
 #aimNow{margin-top:6px;font-size:12.5px;color:var(--dim)} #aimNow b{color:var(--ink);font-family:'JetBrains Mono'}
-#xsec{width:244px;height:115px;display:block;margin-top:6px;background:#0f1216;border:1px solid var(--line);border-radius:6px}
+#xsecPanel{position:absolute;right:14px;top:66px;width:326px;padding:10px 12px}
+#xsec{width:300px;height:220px;display:block;margin-top:6px;background:#0f1216;border:1px solid var(--line);border-radius:6px}
+#xsecLeg{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.35}
 .chk11{display:grid;grid-template-columns:1.25fr 1.6fr 1.25fr auto;gap:6px 8px;font-size:12.5px;align-items:center}
 .chk11 .h{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
 .badge{font:700 11.5px 'Barlow Condensed';letter-spacing:.05em;padding:2px 8px;border-radius:10px;border:1px solid;text-align:center}
@@ -159,10 +161,14 @@ canvas.chart{width:100%;display:block;background:#0f1216;border:1px solid var(--
     <div id="legNow"><span id="legLbl">Bead leg at torch</span>: <b id="legVal">—</b></div>
     <div id="passNow">Pass <b id="passVal">1</b> · <span id="passHint">root</span></div>
     <div id="aimNow">Bead aim <span class="mono" style="font-size:11px;color:var(--dim)">(Z ◂ ▸ C)</span>: <b id="aimVal">center</b></div>
-    <canvas id="xsec" width="488" height="230"></canvas>
-    <div id="tigNow" class="hidden">Pedal: <b id="pedVal">85%</b><div class="rbar"><i id="pedBar"></i></div>Tungsten: <b id="tungVal">clean</b> · Dabs: <b id="dabVal">0</b></div>
+    <div id="tigNow" class="hidden"><span id="pedLbl">Pedal</span>: <b id="pedVal">85%</b><div class="rbar"><i id="pedBar"></i></div><span id="tungLbl">Tungsten</span>: <b id="tungVal">clean</b> · Dabs: <b id="dabVal">0</b></div>
     <div id="rodNow" class="hidden">Electrode left: <b id="rodVal">14.0″</b><div class="rbar"><i id="rodBar"></i></div></div>
     <div id="testNote" class="hidden">TEST MODE — live gauges are hidden and your hand will drift. Watch the puddle.</div>
+  </div>
+  <div class="panel" id="xsecPanel">
+    <div class="ptitle" style="font-size:15px">Cross-section at the torch</div>
+    <canvas id="xsec" width="600" height="440"></canvas>
+    <div id="xsecLeg"></div>
   </div>
   <div class="panel" id="topbar">
     <div id="progWrap"><div id="prog"></div></div>
@@ -194,10 +200,18 @@ canvas.chart{width:100%;display:block;background:#0f1216;border:1px solid var(--
 <div class="modal" id="setup">
   <div class="card">
     <h1>T-JOINT <span>WELD SIM</span></h1>
-    <p class="lead">Weld an 8″ coupon or a pipe joint in any of the AWS test positions: a ¼″ fillet on a T-joint (1F–4F) or a multi-pass ⅜″ V-groove on backing (1G–4G), or an open-root pipe joint (1G rolled, 2G, 5G, 6G), with MIG (GMAW), stick (SMAW), or TIG (GTAW). Steer the torch with your mouse and keyboard, then cut and etch your weld to see how you did.</p>
+    <p class="lead">Weld an 8″ coupon or a pipe joint in any of the AWS test positions: a ¼″ fillet on a T-joint (1F–4F) or a multi-pass ⅜″ V-groove on backing (1G–4G), or an open-root pipe joint (1G rolled, 2G, 5G, 6G), with MIG (GMAW), stick (SMAW), or TIG (GTAW). Or gas weld 14 ga sheet with oxy-acetylene (OAW): butt, outside corner, fillet and lap joints. Steer the torch with your mouse and keyboard, then cut and etch your weld to see how you did.</p>
     <div class="cols">
       <div>
         <h3>Joint &amp; position</h3>
+        <div class="posGrid hidden" id="ojSeg">
+          <button data-oj="butt">Butt<small>flat · with filler</small></button>
+          <button data-oj="corner">Outside corner<small>flat · no filler</small></button>
+          <button data-oj="tee1">Fillet 1F<small>T-joint, flat</small></button>
+          <button data-oj="tee2">Fillet 2F<small>T-joint, horizontal</small></button>
+          <button data-oj="lap1">Lap 1F<small>flat</small></button>
+          <button data-oj="lap2">Lap 2F<small>horizontal</small></button>
+        </div>
         <div class="posGrid" id="posSeg">
           <button data-pos="1F">1F<small>flat fillet</small></button>
           <button data-pos="2F">2F<small>horizontal fillet</small></button>
@@ -234,7 +248,13 @@ canvas.chart{width:100%;display:block;background:#0f1216;border:1px solid var(--
           <button data-p="gmaw">MIG · GMAW<br><small style="font-weight:400;color:var(--dim)">solid wire · shielding gas</small></button>
           <button data-p="smaw">Stick · SMAW<br><small style="font-weight:400;color:var(--dim)">coated electrode · DCEP</small></button>
           <button data-p="gtaw">TIG · GTAW<br><small style="font-weight:400;color:var(--dim)">tungsten · filler rod · DCEN</small></button>
+          <button data-p="oaw">Oxy-fuel · OAW<br><small style="font-weight:400;color:var(--dim)">oxy-acetylene · 14 ga sheet</small></button>
         </div>
+        <div id="handWrap" class="hidden" style="margin:-6px 0 14px"><div style="font-size:14px;margin-bottom:6px">Torch hand</div>
+          <div class="seg" id="handSeg">
+            <button data-h="L">Left-handed<br><small style="font-weight:400;color:var(--dim)">torch left hand · filler right · travel left → right</small></button>
+            <button data-h="R">Right-handed<br><small style="font-weight:400;color:var(--dim)">torch right hand · filler left · travel right → left</small></button>
+          </div></div>
         <h3>Machine setup</h3>
         <div id="gmawCtl">
         <div class="reco">.035″ ER70S-6 wire · 75/25 Ar/CO₂ · ⅜″ A36 plate.<br>Starting point: <b id="gmawReco">400 ipm · 22.0 V · 30 CFH</b> <button id="recoBtn" style="padding:3px 8px;font-size:12px;margin-left:6px">Use</button></div>
@@ -246,6 +266,17 @@ canvas.chart{width:100%;display:block;background:#0f1216;border:1px solid var(--
           <div class="reco">3/32″ 2% lanthanated tungsten · 3/32″ ER70S-2 filler · 100% argon · DCEN · ⅜″ plate.<br>Starting point: <b id="tigReco">200 A max (pedal ≈85% → 170 A) · 20 CFH</b> <button id="recoBtnT" style="padding:3px 8px;font-size:12px;margin-left:6px">Use</button></div>
           <div class="ctl"><label>Max amperage (full pedal) <b id="tigMaxV"></b></label><input type="range" id="tigMax" min="100" max="250" step="5"><small id="tigHint"></small></div>
           <div class="ctl"><label>Argon flow <b id="argonV"></b></label><input type="range" id="argon" min="0" max="50" step="1"><small id="argonHint">15–25 CFH. Too little lets air in; too much turbulence pulls it in.</small></div>
+        </div>
+        <div id="oawCtl" class="hidden">
+          <div class="reco">14 ga (0.075″) mild steel · 1/16″ RG45 rod · oxy-acetylene.<br>Starting point: <b>#1 tip · neutral flame</b> (about 3–5 psi each). <button id="recoBtnO" style="padding:3px 8px;font-size:12px;margin-left:6px">Use</button></div>
+          <div class="ctl"><label>Welding tip</label><div class="seg" id="tipSeg">
+            <button data-tip="0">#0<br><small style="font-weight:400;color:var(--dim)">small · cool</small></button>
+            <button data-tip="1">#1<br><small style="font-weight:400;color:var(--dim)">right for 14 ga</small></button>
+            <button data-tip="2">#2<br><small style="font-weight:400;color:var(--dim)">big · hot</small></button></div><small id="tipHint"></small></div>
+          <div class="ctl"><label>Flame</label><div class="seg" id="flameSeg">
+            <button data-fl="carb">Carburizing<br><small style="font-weight:400;color:var(--dim)">excess acetylene · feather</small></button>
+            <button data-fl="neutral">Neutral<br><small style="font-weight:400;color:var(--dim)">sharp inner cone</small></button>
+            <button data-fl="oxid">Oxidizing<br><small style="font-weight:400;color:var(--dim)">excess oxygen · hissing</small></button></div><small id="flameHint"></small></div>
         </div>
         <div id="smawCtl" class="hidden">
           <div class="reco">⅜″ A36 plate · DCEP (electrode positive).<br>Starting point: <b id="smawReco"></b> <button id="recoBtnS" style="padding:3px 8px;font-size:12px;margin-left:6px">Use</button></div>
@@ -283,6 +314,12 @@ canvas.chart{width:100%;display:block;background:#0f1216;border:1px solid var(--
           <li>At the end, <b>ease off the pedal</b> to fill the crater before you let go, or it will crack.</li>
           <li>Dipped the tungsten? Let off the pedal and press <kbd>G</kbd> to regrind it.</li>
         </ul>
+        <ul id="howO" class="hidden">
+          <li>Hold <kbd>LMB</kbd>/<kbd>Space</kbd> to bring the flame onto the work. The mouse sets travel (sideways) and how far the <b>inner cone</b> is from the metal (up/down). Hold it <b>1/16–1/8″</b> off. Touch the puddle and the torch pops.</li>
+          <li>A flame heats slowly: hold still until a <b>shiny, wet puddle</b> forms (watch the heat gauge), then start moving at about <b class="spdT">4–6 ipm</b>.</li>
+          <li>Point the flame ahead at <b>35–55°</b> (<kbd>W</kbd>/<kbd>S</kbd>) and dab the rod into the <b>front edge of the puddle</b> with <kbd>F</kbd>, never into the flame. Outside corner: no rod, just melt the edges together.</li>
+          <li>Too hot burns a hole in 14 ga. Lift the flame or speed up when the puddle gets big.</li>
+        </ul>
         <ul id="howS" class="hidden">
           <li>Bring the rod tip to the <b>START</b> mark, then click and hold (<kbd>LMB</kbd>/<kbd>Space</kbd>) to strike. Holding keeps the arc lit; letting go breaks it.</li>
           <li><b>The rod burns off</b> as you weld (about 9–10″ a minute). Keep <b>lowering the cursor</b> to feed it in and hold a tight arc, about <b>⅛″</b> (the core-wire diameter).</li>
@@ -299,7 +336,7 @@ canvas.chart{width:100%;display:block;background:#0f1216;border:1px solid var(--
           <span><kbd>H</kbd></span><span>helmet on/off (keep it on!)</span>
           <span><kbd>N</kbd></span><span>start the next pass (multi-pass fillets and grooves)</span>
           <span><kbd>V</kbd></span><span>pipe 2G/5G/6G: walk around to weld the other half</span>
-          <span><kbd>Z</kbd> <kbd>C</kbd></span><span>aim the bead toward one side or the other to split layers. The live cross-section in the HUD shows where it will land.</span>
+          <span><kbd>Z</kbd> <kbd>C</kbd></span><span>move your hand across the joint (aim the bead, split layers). Tipping the torch toward a wall (<kbd>A</kbd>/<kbd>D</kbd>) also moves the arc onto that wall, and you can run a bead off the joint entirely. The cross-section panel on the right shows each bead stacked and where the next one will land.</span>
         </div>
         <p id="bestLine" style="color:var(--dim);font-size:13px;margin-top:14px"></p>
       </div>
@@ -375,7 +412,7 @@ let T = 0.375;                           // plate thickness (set from the setup 
 let ROOT_Y = T, ROOT_Z = T/2;            // root line of the front fillet
 const PL = 8.5;                          // coupon length
 const N = 200; let DX = L/N;             // bead bins
-const M = 60;                            // samples across the joint cross-section
+const M = 96;                            // samples across the joint cross-section (wide, so beads can land off the joint)
 const WIRE_AREA = Math.PI * (0.035/2)**2;
 const TARGET_LEG = 0.25, LEG_MIN = 7/32, LEG_MAX = 5/16;
 
@@ -386,16 +423,32 @@ const ELECTRODES = {
 const CORE_AREA = Math.PI*(0.125/2)**2, ROD_LEN = 14, STUB = 1.75;
 const RIP = {L:0.055, A:0.0045, mode:'sin'};
 const isS = () => state.process === 'smaw';
-const isT = () => state.process === 'gtaw';
+const isT = () => state.process === 'gtaw' || state.process === 'oaw';   // two-handed: torch + filler rod
+const isTig = () => state.process === 'gtaw';
+const isO = () => state.process === 'oaw';
+const GA14 = 0.0747, FEED_O = 0.0017;
+const OJ = {butt:{oj:'butt', pos:'1G', name:'Butt joint · flat'}, corner:{oj:'corner', pos:'1G', name:'Outside corner · flat (no filler)'},
+  tee1:{oj:'tee', pos:'1F', name:'Fillet (T-joint) · 1F'}, tee2:{oj:'tee', pos:'2F', name:'Fillet (T-joint) · 2F'},
+  lap1:{oj:'lap', pos:'1F', name:'Lap joint · 1F'}, lap2:{oj:'lap', pos:'2F', name:'Lap joint · 2F'}};
+const OJ_INFO = {butt:'Two 14 ga sheets edge to edge with a 1/32″ gap. Melt both edges into one puddle and add filler for a slight crown. The bead must melt through to the back side.',
+  corner:'An outside corner, edges flush at the top. No filler: melt the two edges together into a smooth, rounded bead. Too much heat burns a hole; too little leaves the edges unfused.',
+  tee:'Fillet on a 14 ga T-joint. The thin web heats fast: point more flame at the flange and add filler to the leading edge of the puddle.',
+  lap:'One sheet on top of another. Point the flame at the bottom sheet (it sinks more heat) and feed filler to the top edge so it fills without melting the edge away.'};
+const isLap = () => isO() && state.oj === 'lap';
+const isCorner = () => isO() && state.oj === 'corner';
+const handDir = () => (isT() && state.hand === 'R' && !isPipe() && posN() !== 3) ? -1 : 1;   // vertical stays uphill
+const TIPF = [0.72, 1.0, 1.35], FLAMEF = {carb:0.88, neutral:1, oxid:1.08};
+const oxyHeat = () => TIPF[state.tip]*FLAMEF[state.flame]*({butt:1, corner:1.1, tee:0.86, lap:0.92}[state.oj]);
 const isG = () => state.process === 'gmaw';
 const TIG_IDEAL = 170, FEED_V = 0.0104;
 const spec = () => ELECTRODES[state.rod];
 function depRate(){
+  if (isO()) return isCorner() ? passArea()*5/60 : FEED_O*0.3*1.1;
   if (isS()) return spec().burn*(state.amps/spec().ideal)/60*CORE_AREA*spec().dep;
   if (isT()) return FEED_V*0.3*POSMUL.gtaw[posN()];
   return state.wfs/60*WIRE_AREA;
 }
-function passArea(){ if (isPipe()) return (A_FULL + (isT() ? 0.45 : 0.7)*(2*G_TOPH + 0.12)*0.06)/fillPasses(); if (isGr()) return 0.06; return 0.62*state.fsize*state.fsize/fillPasses(); }
+function passArea(){ if (isO()) return {butt:A_FULL + 0.0033, corner:A_FULL*1.1, tee:0.62*state.fsize*state.fsize, lap:0.75*T*T}[state.oj]; if (isPipe()) return (A_FULL + (isT() ? 0.45 : 0.7)*(2*G_TOPH + 0.12)*0.06)/fillPasses(); if (isGr()) return 0.06; return 0.62*state.fsize*state.fsize/fillPasses(); }
 const targets = () => { const v = depRate()/passArea()*60;
   return {sg:[r1(v*0.82), r1(v*1.18)], sy:[r1(v*0.64), r1(v*1.36)], pace:r1(v)}; };
 const spMid = () => { const t = targets(); return (t.sg[0] + t.sg[1])/2; };
@@ -407,7 +460,7 @@ let G_TOPH = G_GAP/2 + T*TANB, A_FULL = G_GAP*T + T*T*TANB;
 const isPipe = () => state.pos[0] === 'P';
 const isGr = () => state.pos[1] === 'G' || isPipe();
 const posN = () => isPipe() ? {P1G:1, P2G:2, P5G:3, P6G:3}[state.pos] : +state.pos[0];
-const posLabel = () => isPipe() ? state.pos.slice(1) + ' pipe' : state.pos;
+const posLabel = () => isO() ? OJ[state.ojk].name : isPipe() ? state.pos.slice(1) + ' pipe' : state.pos;
 const PIPES = {'2s80':{od:2.375, t:0.218, name:'2″ Sch 80'}, '6s40':{od:6.625, t:0.280, name:'6″ Sch 40'}, '6s80':{od:6.625, t:0.432, name:'6″ Sch 80'}};
 const PIPE = {Ro:3.3125, Ri:2.88, th0:0};
 let SEGS = [{a:-4, b:4, dir:1}];
@@ -426,15 +479,16 @@ const recoTig = () => Math.round(RECO.tig[posN()]*tScale(0.25)/5)*5;
 const tigIdeal = () => recoTig()*0.85;
 // AWS D1.1 reference values (statically loaded, nontubular)
 const SINGLE_MAX = {smaw:{1:3/8,2:5/16,3:1/2,4:5/16}, gmaw:{1:1/2,2:3/8,3:1/2,4:5/16}, gtaw:{1:5/16,2:5/16,3:5/16,4:5/16}};
-const singleMax = () => SINGLE_MAX[state.process][posN()];
+const singleMax = () => (SINGLE_MAX[state.process] || SINGLE_MAX.gtaw)[posN()];
 const minFillet = t => t <= 0.25 ? 1/8 : t <= 0.5 ? 3/16 : t <= 0.75 ? 1/4 : 5/16;
 const underrunU = L => L <= 3/16 ? 1/16 : L <= 1/4 ? 3/32 : 1/8;
 const maxConvex = W => W <= 5/16 ? 1/16 : W < 1 ? 1/8 : 3/16;
-const maxRein = () => T >= 1 ? 3/16 : 1/8;
+const maxRein = () => isO() ? 1/16 : T >= 1 ? 3/16 : 1/8;
 const splitW = () => posN() === 3 ? 1 : 5/8;
-function fr32(v){ const n = Math.round(Math.abs(v)*32); if (!n) return '0″'; let a = n, b = 32; while (a % 2 === 0 && b > 1){ a /= 2; b /= 2; }
+function fr32(v){ if (isO() && Math.abs(v) < 0.2 && Math.abs(v*32 - Math.round(v*32)) > 0.08) return (v < 0 ? '−' : '') + Math.abs(v).toFixed(3) + '″'; const n = Math.round(Math.abs(v)*32); if (!n) return '0″'; let a = n, b = 32; while (a % 2 === 0 && b > 1){ a /= 2; b /= 2; }
   const w = Math.floor(a/b), r = a % b; return (v < 0 ? '−' : '') + (w ? w + (r ? ' ' : '') : '') + (r ? `${r}/${b}` : '') + '″'; }
 function fillPasses(){
+  if (isO()) return 1;
   if (isGr()) return Math.max(2, Math.ceil((A_FULL + 0.67*(2*G_TOPH + 0.12)*0.06)/0.06));
   return state.fsize <= singleMax() + 1e-6 ? 1 : state.fsize <= 0.5 ? 3 : 6;
 }
@@ -471,6 +525,7 @@ const state = {
   phase:'setup', mode:'practice',
   wfs:400, volts:22.0, gas:30, helmet:true, sound:true,
   tigMax:200, argon:20, pedal:0.85, H:0, feed:false, feedT:0, contam:false, contams:0, grind:0, cracks:0, dabs:[],
+  hand:'L', tip:1, flame:'neutral', oj:'butt', ojk:'butt',
   pos:'2F', pass:1, chipNext:false, pipe:'6s80', seg:0, pnd:1, thick:0.375, fsize:0.25, aimU:0, lastW:0.38,
   process:'gmaw', rod:'E7018', amps:130, arcLen:0.125, rodLen:14, sticks:0, rodChanges:0, stuck:0,
   workAngle:45, travelAngle:10, ctwd:0.5,
@@ -663,26 +718,43 @@ const tacks = [-3.7, 3.7].map(x => {
   const t = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), tackMat);
   t.scale.set(0.28, 0.12, 0.12); t.position.set(x, T + 0.04, -T/2 - 0.04); t.castShadow = true; filletG.add(t); return t;
 });
+let CW = 0.04;   // outside corner: half-width of the notch where the two sheet edges meet
 function setThickness(){
-  const pp = isPipe();
-  T = pp ? PIPES[state.pipe].t : state.thick; ROOT_Y = T; ROOT_Z = T/2;
-  G_GAP = pp ? 0.125 : 0.25; LAND = pp ? 1/16 : 0; TANB = Math.tan((pp ? 37.5 : 22.5)*Math.PI/180);
+  const pp = isPipe(), oa = isO();
+  T = oa ? GA14 : pp ? PIPES[state.pipe].t : state.thick; ROOT_Y = T; ROOT_Z = isLap() ? 0 : T/2;
+  G_GAP = oa ? 1/32 : pp ? 0.125 : 0.25; LAND = oa ? T : pp ? 1/16 : 0; TANB = oa ? 1e-4 : Math.tan((pp ? 37.5 : 22.5)*Math.PI/180);
   G_TOPH = G_GAP/2 + (T - LAND)*TANB; A_FULL = G_GAP*T + (T - LAND)**2*TANB;
+  if (isCorner()){ CW = T*0.5; G_TOPH = CW; A_FULL = 2*CW*CW; }
   if (pp){
     PIPE.Ro = PIPES[state.pipe].od/2; PIPE.Ri = PIPE.Ro - T; PIPE.th0 = state.pos === 'P2G' ? Math.PI : 0;
     L = 2*Math.PI*PIPE.Ro; X0 = 0; X1 = L; DX = L/N;
     SEGS = state.pos === 'P1G' ? [{a:0, b:L, dir:1}] : [{a:0, b:L/2, dir:1}, {a:L, b:L/2, dir:-1}];
     if (pipeL){ pipeG.remove(pipeL, pipeR); pipeL.geometry.dispose(); pipeR.geometry.dispose(); }
     pipeL = lathePipe(-1); pipeR = lathePipe(1); pipeG.add(pipeL, pipeR);
-  } else { L = 8; X0 = -4; X1 = 4; DX = L/N; SEGS = [{a:X0, b:X1, dir:1}]; }
+  } else { L = 8; X0 = -4; X1 = 4; DX = L/N; SEGS = handDir() < 0 ? [{a:X1, b:X0, dir:-1}] : [{a:X0, b:X1, dir:1}]; }
   for (let i=0;i<N;i++) for (let j=0;j<M;j++) bPos[(i*M+j)*3] = X0 + (i+0.5)*DX;
-  base.geometry.dispose(); base.geometry = new THREE.BoxGeometry(PL, T, 6); base.position.y = T/2;
-  web.geometry.dispose(); web.geometry = new THREE.BoxGeometry(PL, 4, T); web.position.y = T + 2;
+  base.geometry.dispose(); web.geometry.dispose();
+  if (isLap()){   // bottom sheet runs under the top sheet by 1″; the weld sits at the top sheet's edge
+    base.geometry = new THREE.BoxGeometry(PL, T, 4); base.position.set(0, T/2, 1);
+    web.geometry = new THREE.BoxGeometry(PL, T, 3); web.position.set(0, 1.5*T, -1.5);
+  } else {
+    base.geometry = new THREE.BoxGeometry(PL, T, 6); base.position.set(0, T/2, 0);
+    web.geometry = new THREE.BoxGeometry(PL, oa ? 2.5 : 4, T); web.position.set(0, T + (oa ? 1.25 : 2), 0);
+  }
   grooveG.remove(plateL, plateR); plateL.geometry.dispose(); plateR.geometry.dispose();
-  plateL = prism([[-3.2,0],[-G_GAP/2,0],[-G_TOPH,T],[-3.2,T]], plateMat); plateR = prism([[G_GAP/2,0],[3.2,0],[3.2,T],[G_TOPH,T]], webMat);
+  if (isCorner()){   // two sheets forming a roof, edges meeting at the top
+    const Lp = 2.2, r2 = T*Math.SQRT2;
+    plateL = prism([[-Lp, T-Lp], [-CW, T-CW], [0, T-2*CW], [CW, T-CW], [Lp, T-Lp], [Lp - T*S2, T - Lp - T*S2], [0, T - r2], [-Lp + T*S2, T - Lp - T*S2]], plateMat);
+    plateR = prism([[0,0],[0.001,0],[0,0.001]], webMat); plateR.visible = false;
+  } else {
+    const lnd = LAND > 0.001;
+    plateL = prism([[-3.2,0],[-G_GAP/2,0]].concat(lnd ? [[-G_GAP/2,LAND]] : []).concat([[-G_TOPH,T],[-3.2,T]]), plateMat);
+    plateR = prism([[G_GAP/2,0],[3.2,0],[3.2,T],[G_TOPH,T]].concat(lnd ? [[G_GAP/2,LAND]] : []), webMat);
+  }
   grooveG.add(plateL, plateR);
+  backing.visible = !oa;
   arrow.visible = !pp;
-  tacks.forEach(t => t.position.set(t.position.x, T + 0.04, -T/2 - 0.04));
+  tacks.forEach(t => t.position.set(t.position.x, T + 0.04, isLap() ? 0.05 : -T/2 - 0.04));
   if (isPipe()) placeChalkPipe(); else placeChalkPlate();
   setGrid();
 }
@@ -717,8 +789,10 @@ function placeChalkPlate(P){
     if (onWeb){ o.rotation.set(0, 0, 0); o.position.set(x, ROOT_Y + off, ROOT_Z + lift); }
     else { o.rotation.set(-Math.PI/2, 0, 0); o.position.set(x, T + lift, z + off); }
   };
-  put(chalkLines[0], X0, 0.85, 0.002); put(chalkLines[1], X1, 0.85, 0.002);
-  put(chalkLabels[0], X0 + 0.55, 1.75, 0.003); put(chalkLabels[1], X1 - 0.55, 1.75, 0.003); put(chalkLabels[2], 0, 1.75, 0.003);
+  const sA = seg().a, sB = seg().b, dr = seg().dir, off = isO() ? 0.6 : 0.85, offL = isO() ? 1.2 : 1.75;
+  put(chalkLines[0], sA, off, 0.002); put(chalkLines[1], sB, off, 0.002);
+  put(chalkLabels[0], sA + dr*0.55, offL, 0.003); put(chalkLabels[1], sB - dr*0.55, offL, 0.003); put(chalkLabels[2], 0, offL, 0.003);
+  if (dr < 0) chalkLabels[2].rotation.z = Math.PI;
 }
 // Turn each soapstone label flat on its surface so the words read upright from wherever the camera is
 const _kqL = new THREE.Quaternion(), _kpL = new THREE.Quaternion(), _knL = new THREE.Vector3(), _kuL = new THREE.Vector3(), _krL = new THREE.Vector3(), _kcL = new THREE.Vector3(), _kmL = new THREE.Matrix4();
@@ -828,6 +902,8 @@ coupon.add(slag);
 let U_MAX = 0.85, DU = 1.7/(M-1);
 const uAt = j => U_MAX - j*DU;
 function floorF(u){
+  if (isCorner()){ const a = Math.abs(u); return a >= CW ? T - a : T - 2*CW + a; }
+  if (isLap()) return u >= -T*S2 ? Math.abs(u) : u + T*Math.SQRT2;    // top sheet edge, then its top surface
   if (isGr()){ const a = Math.abs(u); if (a < G_GAP/2) return 0; return Math.min(T, LAND + (a - G_GAP/2)/TANB); }
   return Math.abs(u);
 }
@@ -835,12 +911,22 @@ const FLOOR = new Float32Array(M);
 const SURF = new Float32Array(N*M);
 const dirty = new Uint8Array(N).fill(1);
 let passes = [];
-function setGrid(){ U_MAX = isGr() ? G_TOPH + 0.42 : 0.85; DU = 2*U_MAX/(M-1); for (let j=0;j<M;j++) FLOOR[j] = floorF(uAt(j)); dirty.fill(1); }
+function setGrid(){ U_MAX = isGr() ? G_TOPH + 1.15 : 1.55; DU = 2*U_MAX/(M-1); for (let j=0;j<M;j++) FLOOR[j] = floorF(uAt(j)); dirty.fill(1); }
 function newPass(){ passes.push({A:new Float32Array(N), U:new Float32Array(N), W:new Float32Array(N), C:new Float32Array(N)}); }
 const _lp = {y:0, z:0};
 function toLocal(u, h){ if (isGr()){ _lp.y = h; _lp.z = u; } else { _lp.y = ROOT_Y + (h - u)*S2; _lp.z = ROOT_Z + (h + u)*S2; } return _lp; }
 const _g = new Float32Array(M);
+// Outside corner: molten metal stays on the apex (surface tension), so the bead is filled relative to the ridge line
 function fillBead(arr, o, A, u0, w, c, pk){
+  if (isCorner()){
+    for (let j=0;j<M;j++) arr[o+j] -= T - Math.abs(uAt(j));
+    const r = fillBead0(arr, o, A, u0, w, c, pk);
+    for (let j=0;j<M;j++) arr[o+j] += T - Math.abs(uAt(j));
+    return r;
+  }
+  return fillBead0(arr, o, A, u0, w, c, pk);
+}
+function fillBead0(arr, o, A, u0, w, c, pk){
   const half = Math.max(0.06, w/2), kc = clamp(c, -0.15, 0.75)*0.22*w;
   const j0 = clamp(Math.floor((U_MAX - (u0 + 1.3*half))/DU), 0, M-1), j1 = clamp(Math.ceil((U_MAX - (u0 - 1.3*half))/DU), 0, M-1);
   let lo = 1e9, hi = -1e9;
@@ -877,17 +963,26 @@ function replayInto(arr, o, i, upto, hist){
 }
 const F32 = n => new Float32Array(n);
 const D = {Lb:F32(N), Lw:F32(N), size:F32(N), cvx:F32(N), W:F32(N), A:F32(N), rein:F32(N), ufill:F32(N), notch:F32(N),
-           rprot:F32(N), jA:new Int16Array(N).fill(-1), jB:new Int16Array(N).fill(-1), lastPass:new Int8Array(N), rp:F32(N),
+           rprot:F32(N), off:new Uint8Array(N), jA:new Int16Array(N).fill(-1), jB:new Int16Array(N).fill(-1), lastPass:new Int8Array(N), rp:F32(N),
            C:F32(N), pen:F32(N), b:F32(N), inc:F32(N), por:F32(N), uc:F32(N), cold:F32(N), lof:F32(N), burn:F32(N)};
 function measure(i){
-  const o = i*M; let jA = -1, jB = -1, area = 0;
-  for (let j=0;j<M;j++){ const d = SURF[o+j] - FLOOR[j]; if (d > 0.004){ if (jA < 0) jA = j; jB = j; area += d*DU; } }
+  const o = i*M; let jA = -1, jB = -1, area = 0, tot = 0;
+  const jr = clamp(Math.round(U_MAX/DU), 0, M-1), on = j => SURF[o+j] - FLOOR[j] > 0.004;
+  // the weld is the metal joined to the root; anything separate (a bead run beside the joint) is off-joint metal
+  if (on(jr) || (jr+1 < M && on(jr+1)) || on(jr-1)){
+    let a = on(jr) ? jr : on(jr+1) ? jr+1 : jr-1, b = a;
+    while (a > 0 && on(a-1)) a--; while (b < M-1 && on(b+1)) b++;
+    jA = a; jB = b;
+  }
+  for (let j=0;j<M;j++){ const d = SURF[o+j] - FLOOR[j]; if (d > 0.004){ tot += d*DU; if (j >= jA && j <= jB && jA >= 0) area += d*DU; } }
+  D.off[i] = tot - area > 0.002 ? 1 : 0;
   D.jA[i] = jA; D.jB[i] = jB; D.A[i] = area;
   if (jA < 0){ D.Lb[i] = D.Lw[i] = D.size[i] = D.cvx[i] = D.W[i] = 0; D.rein[i] = D.ufill[i] = -T; return; }
   if (isGr()){
     let mx = -9, mn = 9;
-    for (let j=jA;j<=jB;j++) mx = Math.max(mx, SURF[o+j] - T);
-    for (let j=0;j<M;j++) if (Math.abs(uAt(j)) <= G_TOPH) mn = Math.min(mn, SURF[o+j] - T);
+    const ref = u => isCorner() ? T - Math.abs(u) : T;
+    for (let j=jA;j<=jB;j++) mx = Math.max(mx, SURF[o+j] - ref(uAt(j)));
+    for (let j=0;j<M;j++) if (Math.abs(uAt(j)) <= G_TOPH) mn = Math.min(mn, SURF[o+j] - ref(uAt(j)));
     D.rein[i] = mx; D.ufill[i] = mn; D.Lb[i] = D.Lw[i] = Math.min(0.4, Math.sqrt(area)); D.W[i] = (jB - jA)*DU;
     return;
   }
@@ -1134,6 +1229,24 @@ let tungMat, tungBall;
   handle.position.copy(st).addScaledVector(d, 2.4); handle.rotation.z = -Math.atan2(d.x, d.y);
   tigAnchor.position.copy(st).addScaledVector(d, 4.5); tig.add(tigAnchor);
 })();
+const oxy = new THREE.Group(); torch.add(oxy); oxy.visible = false;
+let flameIn, flameOut;
+(function buildOxy(){
+  const brass = new THREE.MeshStandardMaterial({color:0xb8923e, metalness:0.85, roughness:0.32});
+  const copper = new THREE.MeshStandardMaterial({color:0xb4643a, metalness:0.85, roughness:0.3});
+  const add = (m, g = oxy) => { m.castShadow = true; g.add(m); return m; };
+  const nz = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.07, 0.35, 14), copper)); nz.position.y = 0.3;
+  const tip = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.2, 14), brass)); tip.position.y = 1.55;
+  const d = new THREE.Vector3(0.94, 0.34, 0).normalize(), st = new THREE.Vector3(0, 2.6, 0);
+  const bend = add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), brass)); bend.position.copy(st);
+  const handle = add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 4.2, 18), brass));
+  handle.position.copy(st).addScaledVector(d, 2.2); handle.rotation.z = -Math.atan2(d.x, d.y);
+  [[0x2e9e4f, 0.6], [0xc0392b, 1.1]].forEach(([c, k]) => { const v = add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.32, 10), new THREE.MeshStandardMaterial({color:c, roughness:0.5})));
+    v.position.copy(st).addScaledVector(d, 3.9 + k*0.25); v.position.z += 0.25; v.rotation.x = Math.PI/2; });
+  const fm = (col, op) => new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false});
+  flameIn = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.13, 12), fm(new THREE.Color(1.6, 1.9, 2.6), 0.95)); flameIn.rotation.x = Math.PI; flameIn.position.y = 0.06; oxy.add(flameIn);
+  flameOut = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.75, 16, 1, true), fm(new THREE.Color(0.25, 0.45, 1.3), 0.45)); flameOut.rotation.x = Math.PI; flameOut.position.y = -0.18; oxy.add(flameOut);
+})();
 const filler = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 1, 8), new THREE.MeshStandardMaterial({color:0xb9825a, metalness:0.85, roughness:0.3}));
 filler.castShadow = true; filler.visible = false; coupon.add(filler);
 const fillerTip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({color:new THREE.Color(2.4,1.1,0.4)}));
@@ -1243,6 +1356,8 @@ function presetPipe(k){
 function presetFor(k){
   if (isPipe()) return presetPipe(k);
   const P = POSCAM[state.pos]; let {theta, phi, r} = P;
+  if (isO()){ r *= 0.8; if (handDir() < 0) theta = -theta; }       // 14 ga is small: come in closer
+  else if (handDir() < 0) theta = -theta;                            // right-handed: stand on the right
   if (k == 2){ theta *= 0.2; phi += phi > 1.57 ? -0.2 : 0.2; r *= 0.82; }
   if (k == 3){ theta += 0.75; r *= 0.75; }
   if (k === 'insp'){ theta += 0.12; r *= 0.96; }
@@ -1485,12 +1600,16 @@ function makeGauges(){
       zone:v=> v>=g0&&v<=g1?'g' : v>=y0&&v<=y1?'y':'r', tgt:`target ${g0}–${g1} ipm`},
     (() => { const wi = waIdeal(); return {id:'wa', label:'Work angle', min:wi-45, max:wi+45, get:()=>state.workAngle, fmt:v=>v.toFixed(0)+'°',
       zone:v=> Math.abs(v-wi)<=5?'g' : Math.abs(v-wi)<=10?'y':'r', tgt: isGr() ? 'target 90° (square to the groove)' : 'target 45° (bisect the joint)'}; })(),
+    isO() ? {id:'ta', label:'Travel angle', min:0, max:80, get:()=>state.travelAngle, fmt:v=>Math.abs(v).toFixed(0)+'° '+(v>=0?'push':'BACKHAND'),
+      zone:v=> v>=35&&v<=55?'g' : v>=25&&v<=65?'y':'r', tgt:'target 35–55° (flame points ahead)'} :
     isT() ? {id:'ta', label:'Travel angle', min:-30, max:30, get:()=>state.travelAngle, fmt:v=>Math.abs(v).toFixed(0)+'° '+(v>=0?'push':'DRAG'),
       zone:v=> v>=5&&v<=20?'g' : v>=0&&v<=25?'y':'r', tgt:'target 5–20° push (filler leads)'} :
     sm ? {id:'ta', label:'Travel angle', min:-30, max:30, get:()=>state.travelAngle, fmt:v=>Math.abs(v).toFixed(0)+'° '+(v<=0?'drag':'PUSH'),
       zone:v=> v<=-5&&v>=-15?'g' : v<=1&&v>=-20?'y':'r', tgt:'target 5–15° drag (never push stick)'}
        : {id:'ta', label:'Travel angle', min:-30, max:30, get:()=>state.travelAngle, fmt:v=>Math.abs(v).toFixed(0)+'° '+(v>=0?'push':'drag'),
       zone:v=>{const a=Math.abs(v); return a>=5&&a<=15?'g' : a<=20?'y':'r';}, tgt:'target 5–15° push or drag'},
+    isO() ? {id:'ct', label:'Inner cone to metal', min:0, max:0.5, get:()=>Math.max(0,state.arcLen), fmt:v=>v.toFixed(3)+'″',
+      zone:v=> v>=0.06&&v<=0.14?'g' : v>=0.04&&v<=0.2?'y':'r', tgt:'target 1/16–1/8″ (cone tip just off the puddle)'} :
     isT() ? {id:'ct', label:'Arc length', min:0, max:0.4, get:()=>Math.max(0,state.arcLen), fmt:v=>v.toFixed(3)+'″',
       zone:v=> v>=0.05&&v<=0.13?'g' : v>=0.03&&v<=0.18?'y':'r', tgt:'target ≈ tungsten dia (3/32″)'} :
     sm ? {id:'ct', label:'Arc length', min:0, max:0.4, get:()=>Math.max(0,state.arcLen), fmt:v=>v.toFixed(3)+'″',
@@ -1555,19 +1674,23 @@ function smawConditions(){
 }
 function gtawConditions(){
   const H = state.H, al = state.arcLen, ta = state.travelAngle, sp = state.speed*BASEMID.gtaw/spMid(), b = clamp((state.workAngle - waIdeal())/45, -1, 1);
-  const Ia = state.tigMax*state.pedal;
+  const Ia = state.tigMax*state.pedal, oa = isO(), src = oa ? oxyHeat() : Ia/tigIdeal();
   const c = clamp(0.32 - 0.45*(H-1), -0.18, 0.75);
-  const pen = 0.06*(Ia/tigIdeal())*Math.sqrt(5/Math.max(sp,1.5))*(1 - 0.8*clamp(al-0.13,0,0.3));
+  const pen = 0.06*src*Math.sqrt(5/Math.max(sp,1.5))*(1 - 0.8*clamp(al-0.13,0,0.3));
   let por = 0;
-  if (state.argon < 12) por += (12-state.argon)/7;
-  if (state.argon > 35) por += (state.argon-35)/12;
-  if (al > 0.2) por += (al-0.2)/0.1;
+  if (oa){ if (state.flame === 'oxid') por += 0.7; if (state.flame === 'carb') por += 0.25; if (al > 0.3) por += (al-0.3)/0.15; }
+  else {
+    if (state.argon < 12) por += (12-state.argon)/7;
+    if (state.argon > 35) por += (state.argon-35)/12;
+    if (al > 0.2) por += (al-0.2)/0.1;
+  }
   let uc = 0; if (H > 1.25) uc += (H-1.25)/0.3; if (b > 0.3) uc += (b-0.3)*2.2;
   let cold = 0; if (H < 0.8) cold += (0.8-H)/0.3; if (b < -0.3) cold += (-b-0.3)*2.2;
   let lof = 0; if (H < 0.6) lof += (0.6-H)/0.25; if (pen < 0.03) lof += (0.03-pen)/0.02;
-  const inc = state.contam ? 1 : 0;
-  const ox = Math.max(state.argon < 12 ? (12-state.argon)/10 : 0, H > 1.3 ? (H-1.3)/0.4 : 0);
-  return {vErr:0, aE:0, I:Ia, b, c, pen, por:clamp(por,0,1), uc:clamp(uc,0,1), cold:clamp(cold,0,1), lof:clamp(lof,0,1), inc, ox:clamp(ox,0,1), h:H, sf: state.contam ? 0.3 : 0};
+  if (oa && state.flame === 'carb') cold += 0.2;
+  const inc = !oa && state.contam ? 1 : 0;
+  const ox = oa ? (state.flame === 'oxid' ? 0.75 : H > 1.3 ? (H-1.3)/0.4 : 0) : Math.max(state.argon < 12 ? (12-state.argon)/10 : 0, H > 1.3 ? (H-1.3)/0.4 : 0);
+  return {vErr:0, aE:0, I:Ia, b, c, pen, por:clamp(por,0,1), uc:clamp(uc,0,1), cold:clamp(cold,0,1), lof:clamp(lof,0,1), inc, ox:clamp(ox,0,1), h:H, sf: oa ? (state.flame === 'oxid' ? 0.55 : 0.08) : state.contam ? 0.3 : 0};
 }
 function heatIdx(){
   const spT = spMid(), sp = Math.max(state.speed, spT*0.25);
@@ -1598,7 +1721,7 @@ function posAdjust(P, hx){
   P.cold = clamp(P.cold + 0.8*sag, 0, 1);
   P.uc = clamp(P.uc + 0.35*sag, 0, 1);
   P.pen *= pp.pen*Math.pow(0.375/T, 0.25);                       // thick plate sinks heat
-  P.burn = !gr && T <= 0.25 ? clamp((hx - 1.3)/0.25, 0, 1) : 0;     // thin plate melts through
+  P.burn = isO() || (!gr && T <= 0.25) ? clamp((hx - 1.3)/0.25, 0, 1) : 0;     // thin sheet melts through
   if (gr) P.lof = clamp(P.lof + Math.max(0, Math.abs(P.b) - 0.25)*1.6, 0, 1);
   P.sag = sag; P.hx = hx;
   return P;
@@ -1636,18 +1759,19 @@ function gmawConditions(){
   return {vErr, I, b, c, pen, por:clamp(por,0,1), uc:clamp(uc,0,1), cold:clamp(cold,0,1), lof:clamp(lof,0,1), inc:0, sf:clamp(sf,0,1)};
 }
 function beadWidth(P){
-  const base = isS() ? (state.rod === 'E6010' ? 0.30 : 0.33) : isT() ? (isPipe() ? 0.40 : 0.28) : 0.38;   // pipe TIG: walk the cup
+  const base = isO() ? 0.2 : isS() ? (state.rod === 'E6010' ? 0.30 : 0.33) : isT() ? (isPipe() ? 0.40 : 0.28) : 0.38;   // pipe TIG: walk the cup
   const sp = Math.max(state.speed, spMid()*0.3);
   return base*clamp(0.8 + 0.25*(P.hx || 1), 0.75, 1.3)*clamp(Math.sqrt(spMid()/sp), 0.8, 1.35);
 }
 function deposit(dt, P){
-  if (isT() && !(state.feed && state.H > 0.35)) return;
-  const dv = isT() ? FEED_V*clamp(state.H/0.7, 0.2, 1)*dt : depRate()*dt;
-  const center = (state.x + (isT() ? 0.05 : 0) - X0)/DX - 0.5, sig = 0.1/DX;
+  if (isCorner()){ if (state.H < 0.75) return; }
+  else if (isT() && !(state.feed && state.H > 0.35)) return;
+  const dv = isCorner() ? depRate()*clamp((state.H - 0.75)/0.3, 0, 1.3)*dt : isT() ? (isO() ? FEED_O : FEED_V)*clamp(state.H/0.7, 0.2, 1)*dt : depRate()*dt;
+  const center = (state.x + (isT() ? 0.05*seg().dir : 0) - X0)/DX - 0.5, sig = (isO() ? 0.07 : 0.1)/DX;
   const lo = Math.floor(center - 3*sig), hi = Math.ceil(center + 3*sig);
   let tot = 0; for (let i=lo;i<=hi;i++) tot += Math.exp(-0.5*((i-center)/sig)**2);
   const pa = passes[passes.length - 1];
-  const u0 = clamp(state.aimU + clamp(P.b, -1, 1)*0.07, -U_MAX*0.8, U_MAX*0.8), w = beadWidth(P);
+  const u0 = aimArc(), w = beadWidth(P);
   state.lastW = w;
   const melt = clamp(((P.hx || 1) - 1.1)/0.4, -1, 1.5), nd = state.pnd ?? 1, prot = 0.035 + 0.05*melt + 0.04*nd + Math.min(0, nd)*0.15*Math.max(0, melt - 0.3);   // + melt-through, − concavity (suck-back overhead)
   depClock += dt;
@@ -1657,7 +1781,8 @@ function deposit(dt, P){
     // pipe tie-ins: crossing an end of this same pass that is already filled, the welder feathers in
     const tie = isPipe() && tieP[i] === state.pass && depClock - tieT[i] > 2.5, tieEnd = (state.x - seg().a)*seg().dir > 0.5;   // starting on, or finishing over, earlier metal
     if (isPipe() && !tie){ if (tieP[i] !== state.pass) tieA[i] = 0; tieT[i] = depClock; tieP[i] = state.pass; }
-    const sh = Math.exp(-0.5*((i0-center)/sig)**2)/tot, v = dv*sh*(tie ? (tieEnd ? Math.max(0.2, 1 - 0.9*tieA[i]/passArea()) : Math.max(0.5, 1 - 0.5*tieA[i]/passArea())) : 1), bn = bins[i];
+    const capF = isCorner() ? clamp((A_FULL*1.2 - bins[i].vol/DX)/(A_FULL*0.4), 0, 1) : 1;   // no filler: only the edges' own metal
+    const sh = Math.exp(-0.5*((i0-center)/sig)**2)/tot, v = capF*dv*sh*(tie ? (tieEnd ? Math.max(0.2, 1 - 0.9*tieA[i]/passArea()) : Math.max(0.5, 1 - 0.5*tieA[i]/passArea())) : 1), bn = bins[i];
     if (bn.vol/DX < 0.03){ bn.rp += P.pen*v; bn.rv += v; if (isPipe()){ bn.rprot += prot*v; bn.rpv += v; } }   // root pass
     const slagIn = isS() && bn.slag && bn.slagPass < state.pass;              // welding over uncleaned slag
     bn.vol += v; bn.b += P.b*v; bn.c += P.c*v; bn.pen += P.pen*v; bn.burn += (P.burn || 0)*v;
@@ -1678,6 +1803,14 @@ function deposit(dt, P){
 const tmpU = new THREE.Vector3(), tmpS = new THREE.Vector3(), tmpZ = new THREE.Vector3(), XA = new THREE.Vector3(1,0,0);
 const basis = new THREE.Matrix4();
 let flicker = 0;
+// Where the arc lands across the joint: the hand position (Z/C) plus how the torch is tipped toward a wall.
+// Tipping the torch by an angle moves the arc along the surface by roughly (standoff + lever) × tan(angle).
+function steerOff(){
+  const dev = clamp(state.workAngle - waIdeal(), -60, 60)*Math.PI/180;
+  const stand = isG() ? state.ctwd : Math.max(0, state.arcLen);
+  return (0.14 + 0.6*stand)*Math.tan(dev);
+}
+const aimArc = () => clamp(state.aimU + steerOff(), -U_MAX*0.9, U_MAX*0.9);
 function torchAxis(){
   const wa = state.workAngle*Math.PI/180, ta = state.travelAngle*Math.PI/180;
   tmpU.set(0, Math.sin(wa), Math.cos(wa)).multiplyScalar(Math.cos(ta));
@@ -1687,7 +1820,7 @@ function torchAxis(){
 function arcPoint(out){
   const i = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
   const inJ = state.x >= X0-0.05 && state.x <= X1+0.05;
-  const u = clamp(state.aimU, -U_MAX*0.8, U_MAX*0.8);
+  const u = aimArc();
   const q = toLocal(u, (inJ ? surfH(i, u) : floorF(u)) + 0.012);
   return out.set(state.x, q.y, q.z);
 }
@@ -1697,7 +1830,7 @@ function placeTorch(){
   arcPoint(AP);
   const sm = isS(), alv = Math.max(0, state.arcLen);
   TIP.copy(AP).addScaledVector(u, sm ? alv + state.rodLen : isT() ? alv : state.ctwd);
-  tmpS.set(-0.8, 0.35, 0.5).addScaledVector(u, -tmpS.set(-0.8, 0.35, 0.5).dot(u)).normalize();
+  const hd = seg().dir; tmpS.set(-0.8*hd, 0.35, 0.5).addScaledVector(u, -tmpS.set(-0.8*hd, 0.35, 0.5).dot(u)).normalize();
   tmpZ.crossVectors(tmpS, u).normalize();
   basis.makeBasis(tmpS, u, tmpZ);
   torch.position.copy(TIP);
@@ -1714,18 +1847,19 @@ function placeTorch(){
     rodMesh.scale.set(1, state.rodLen, 1);
   }
   if (isT()){
-    FTIP.copy(AP).add(_fo.set(lerp(0.4, 0.1, fillerIn), lerp(0.2, 0.0, fillerIn), lerp(0.22, 0.05, fillerIn)));
-    filler.position.copy(FTIP).addScaledVector(FDIR, 6);
-    filler.quaternion.setFromUnitVectors(_up, FDIR); filler.scale.set(1, 12, 1);
+    FTIP.copy(AP).add(_fo.set(hd*lerp(0.4, 0.1, fillerIn), lerp(0.2, 0.0, fillerIn), lerp(0.22, 0.05, fillerIn)));
+    _fdir.copy(FDIR); _fdir.x *= hd;
+    filler.position.copy(FTIP).addScaledVector(_fdir, 6);
+    filler.quaternion.setFromUnitVectors(_up, _fdir); filler.scale.set(isO() ? 0.66 : 1, 12, isO() ? 0.66 : 1);
     fillerTip.position.copy(FTIP);
-    tungBall.visible = state.contam;
+    tungBall.visible = state.contam && isTig();
     tungMat.color.setHex(state.contam ? 0x5a5650 : 0xb9bcc2);
   }
   if (isPipe()){ bendObj(torch); bendObj(wire); bendObj(rodMesh); bendObj(rodTip); bendObj(filler); bendObj(fillerTip); }
   torch.updateMatrixWorld(true);
   rebuildCable();
 }
-const _fo = new THREE.Vector3(), _up = new THREE.Vector3(0,1,0);
+const _fo = new THREE.Vector3(), _up = new THREE.Vector3(0,1,0), _fdir = new THREE.Vector3();
 
 function updateWeld(dt){
   // keyboard angles
@@ -1750,8 +1884,8 @@ function updateWeld(dt){
   state.workAngle = clamp(state.workAngle, 5, 175);
   { const ar = (keys.ShiftLeft || keys.ShiftRight) ? 0.08 : 0.25;
     if (keys.KeyC) state.aimU += ar*dt; if (keys.KeyZ) state.aimU -= ar*dt;
-    state.aimU = clamp(state.aimU, -U_MAX*0.75, U_MAX*0.75); }
-  state.travelAngle = clamp(state.travelAngle, -40, 40);
+    state.aimU = clamp(state.aimU, -U_MAX*0.85, U_MAX*0.85); }
+  state.travelAngle = clamp(state.travelAngle, -40, isO() ? 80 : 40);
 
   let m = mapMouse();
   if (kb.on){
@@ -1788,7 +1922,15 @@ function updateWeld(dt){
   const was = state.arc;
   let want = state.trigger && state.burnback <= 0 && state.stuck <= 0;
   if (want && !inRange){ want = false; toast('Strike the arc on the joint, at the START mark', 'warn', 'range'); }
-  if (isT()){
+  if (isO()){
+    // oxy-fuel: the flame is always lit; "on" means the flame is on the work. Touch the tip to the puddle and it pops.
+    const al = state.arcLen;
+    if (want && al < 0.025){ want = false; state.burnback = 1.0; state.pops = (state.pops||0) + 1;
+      toast('POP! Backfire: the tip touched the puddle. Keep the inner cone 1/16–1/8″ above the metal.', 'bad', 'pop', 1500); }
+    state.feed = keys.KeyF && want && !isCorner();
+    if (state.feed && !state.wasFeed && state.x >= X0 && state.x <= X1 + 0.1) state.dabs.push(state.x + 0.05*seg().dir);
+    state.wasFeed = state.feed;
+  } else if (isT()){
     const al = state.arcLen;
     if (want && state.grind > 0) want = false;
     else if (want && state.pedal < 0.08){ want = false; }
@@ -1806,7 +1948,7 @@ function updateWeld(dt){
       state.contam = true; state.contams++;
       toast('The filler touched the tungsten! Let off and press G to regrind.', 'bad', 'dip2', 1500);
     }
-    if (state.feed && !state.wasFeed && state.x >= X0 && state.x <= X1 + 0.1) state.dabs.push(state.x + 0.05);
+    if (state.feed && !state.wasFeed && state.x >= X0 && state.x <= X1 + 0.1) state.dabs.push(state.x + 0.05*seg().dir);
     state.wasFeed = state.feed;
     if (was && !want){
       const ci = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
@@ -1845,18 +1987,20 @@ function updateWeld(dt){
   // TIG puddle heat
   if (isT()){
     if (state.arc){
-      const eq = (state.tigMax*state.pedal/tigIdeal())*Math.pow(targets().pace/Math.max(state.speed,0.5), 0.35)*(1 - 1.2*Math.max(0, state.arcLen-0.13))*(state.contam ? 0.85 : 1);
-      state.H = lerp(state.H, eq, 1 - Math.exp(-dt/0.9));
+      const pace = Math.pow(targets().pace/Math.max(state.speed,0.5), 0.35);
+      const eq = isO() ? oxyHeat()*pace*clamp(1 - 1.5*Math.max(0, state.arcLen - 0.14), 0.2, 1)
+                       : (state.tigMax*state.pedal/tigIdeal())*pace*(1 - 1.2*Math.max(0, state.arcLen-0.13))*(state.contam ? 0.85 : 1);
+      state.H = lerp(state.H, eq, 1 - Math.exp(-dt/(isO() ? 2.0 : 0.9)));     // a flame heats slower than an arc
     } else state.H = lerp(state.H, 0, 1 - Math.exp(-dt/0.6));
     fillerIn = lerp(fillerIn, state.feed ? 1 : 0, 1 - Math.exp(-dt*22));
-    fillerTip.visible = state.feed && state.H > 0.35;
+    fillerTip.visible = state.feed && state.H > 0.35 && !isCorner();
   }
   let P = null;
   if (state.arc){
     P = processConditions(); lastSf = P.sf;
     if (isS()) state.rodLen = Math.max(STUB, state.rodLen - spec().burn*(state.amps/spec().ideal)/60*dt);
     deposit(dt, P);
-    if (isT() && !state.feed && state.H > 1.12){
+    if (isT() && !isCorner() && !state.feed && state.H > 1.12){
       const c = (state.x - X0)/DX - 0.5;
       for (let i=Math.max(0,Math.floor(c-3)); i<=Math.min(N-1,Math.ceil(c+3)); i++) if (bins[i].vol > 0) bins[i].ucx = Math.min(1, bins[i].ucx + dt*(state.H-1.0)*0.9);
     }
@@ -1920,25 +2064,32 @@ function updateWeld(dt){
   else $('#legVal').textContent = inJ && D.size[bi] > 0.02 ? `${D.size[bi].toFixed(3)}″ of ${fr32(state.fsize)} (legs ${D.Lb[bi].toFixed(2)} / ${D.Lw[bi].toFixed(2)})` : '—';
   $('#passVal').textContent = `${state.pass} of ~${fillPasses()}`;
   $('#passHint').textContent = passAdvice(bi);
-  const au = state.aimU, side = isGr() ? (au > 0 ? 'near side' : 'far side') : (au > 0 ? 'flange' : 'web');
-  $('#aimVal').textContent = Math.abs(au) < 0.02 ? 'center' : `${Math.abs(au).toFixed(2)}″ toward ${side}`;
+  const au = aimArc(), side = isGr() ? (au > 0 ? 'near side' : 'far side') : (au > 0 ? (isLap() ? 'bottom plate' : 'flange') : (isLap() ? 'top plate' : 'web'));
+  const offJ = Math.abs(au) > (isGr() ? G_TOPH + 0.05 : 0.45);
+  $('#aimVal').textContent = (Math.abs(au) < 0.02 ? 'center' : `${Math.abs(au).toFixed(2)}″ toward ${side}`) + (offJ ? ' · OFF THE JOINT' : '');
+  $('#aimVal').style.color = offJ ? 'var(--red)' : '';
   drawXsec(bi);
   if (isT()){
+    if (isO()){
+      $('#pedVal').textContent = `tip #${state.tip} · heat ${Math.round(clamp(state.H/1.4, 0, 1)*100)}%`; $('#pedBar').style.width = (clamp(state.H/1.4, 0, 1)*100).toFixed(0) + '%';
+      $('#tungVal').textContent = {carb:'carburizing', neutral:'neutral', oxid:'oxidizing'}[state.flame];
+    } else {
     $('#pedVal').textContent = Math.round(state.pedal*100) + '% → ' + Math.round(state.tigMax*state.pedal) + ' A';
     $('#pedBar').style.width = (state.pedal*100).toFixed(0) + '%';
-    $('#tungVal').textContent = state.grind > 0 ? 'grinding…' : state.contam ? 'CONTAMINATED' : 'clean';
+    $('#tungVal').textContent = state.grind > 0 ? 'grinding…' : state.contam ? 'CONTAMINATED' : 'clean'; }
     $('#tungVal').style.color = state.contam ? '#ff8a8a' : '';
     $('#dabVal').textContent = state.dabs.length;
   }
   if (isS()){ $('#rodVal').textContent = state.rodLen.toFixed(1) + '″'; $('#rodBar').style.width = ((state.rodLen-STUB)/(ROD_LEN-STUB)*100).toFixed(1) + '%'; }
   let status;
-  if (state.burnback > 0) status = 'Burnback: clearing the contact tip…';
+  if (state.burnback > 0) status = isO() ? 'Popped: relighting the torch…' : 'Burnback: clearing the contact tip…';
   else if (state.stuck > 0) status = 'Stuck electrode: breaking it free…';
   else if (isT() && state.grind > 0) status = 'Regrinding the tungsten…';
   else if (isT() && state.contam && !state.arc) status = 'Tungsten contaminated: press G to regrind';
+  else if (state.arc && isO()) status = 'FLAME ON · ' + (state.H < 0.8 ? 'hold still until the puddle is wet' : isCorner() ? 'melting the edges together' : 'dab rod into the front of the puddle');
   else if (state.arc) status = 'ARC ON · ' + (isS() ? state.amps + ' A DCEP' : isT() ? Math.round(state.tigMax*state.pedal) + ' A DCEN' + (state.contam ? ' · ARC WANDERING' : '') : Math.round(ampsFor(state.wfs, state.ctwd)) + ' A');
   else if (isS() && state.rodLen <= STUB + 0.01) status = 'Stub! Press R for a fresh rod';
-  else if (!state.firstArc) status = isT() ? 'Line up at START and press the pedal' : 'Line up at START and pull the trigger';
+  else if (!state.firstArc) status = isO() ? 'Line up at START and bring the flame down' : isT() ? 'Line up at START and press the pedal' : 'Line up at START and pull the trigger';
   else if (segDone() && isPipe() && state.seg < SEGS.length - 1) status = 'Half done: V = walk around to the other side';
   else if (segDone()) status = state.pass < fillPasses() ? `Pass ${state.pass} done: N = next pass · Enter = inspect` : 'Weld complete? Enter = inspect · N = another pass';
   else status = isS() ? 'Arc off. Restrike just ahead of your crater' : 'Arc off. Restart just ahead of your crater';
@@ -1967,13 +2118,18 @@ function updateEffects(dt){
   // arc visuals
   flicker = state.arc ? 0.75 + Math.random()*0.5 : 0;
   arcGlow.visible = arcCore.visible = puddle.visible = state.arc;
+  if (isO()){ arcCore.visible = false; flameIn.visible = flameOut.visible = state.phase === 'weld';
+    const fl = state.flame === 'carb' ? 1.6 : state.flame === 'oxid' ? 0.75 : 1;           // carburizing: feathery inner cone
+    flameIn.scale.set(1, fl*(0.9 + Math.random()*0.15), 1); flameOut.scale.set(1, 0.9 + Math.random()*0.2, 1);
+    flameIn.material.color.setRGB(state.flame === 'carb' ? 2.2 : 1.6, 1.9, 2.6); }
   if (state.arc){
     arcGlow.position.copy(AP); arcCore.position.copy(AP);
     if (isT() && state.contam){ _wv.set(rand(-0.05,0.05), rand(-0.02,0.02), rand(-0.02,0.02)); arcGlow.position.add(_wv); arcCore.position.add(_wv); }
     const s = 1.6 + flicker*1.2;
     arcGlow.scale.set(s, s, 1); arcCore.scale.set(0.32*flicker+0.12, 0.32*flicker+0.12, 1);
     arcLight.position.copy(AP).addScaledVector(jointN(), 0.35); bendP(arcLight); bendP(arcGlow); bendP(arcCore);
-    arcLight.intensity = 5*flicker;
+    arcLight.intensity = isO() ? 1.6 + 0.8*state.H : 5*flicker;
+    if (isO()){ const gs = 0.5 + 0.7*clamp(state.H, 0, 1.4); arcGlow.scale.set(gs, gs, 1); }
     const i = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
     const sz = Math.max(0.07, Math.max(D.Lb[i], D.Lw[i])*0.55);
     puddle.position.copy(AP).addScaledVector(jointN(), -0.025);
@@ -1984,12 +2140,12 @@ function updateEffects(dt){
 
   // helmet / exposure
   const welding = state.phase === 'weld';
-  const goalExp = state.arc ? (state.helmet ? 0.34 : 1.6) : 1.0;
+  const goalExp = isO() ? (state.arc ? (state.helmet ? 0.85 : 1.05) : 1.0) : state.arc ? (state.helmet ? 0.34 : 1.6) : 1.0;
   renderer.toneMappingExposure = lerp(renderer.toneMappingExposure, goalExp, 1 - Math.exp(-dt*(state.arc ? 40 : 12)));
-  $('#lens').style.opacity = state.arc && state.helmet ? 1 : 0;
+  $('#lens').style.opacity = state.arc && state.helmet ? (isO() ? 0.35 : 1) : 0;
   $('#frame').style.opacity = welding && state.helmet ? 1 : 0;
-  $('#flash').style.opacity = state.arc && !state.helmet ? (0.55 + Math.random()*0.3).toFixed(2) : 0;
-  if (state.arc && !state.helmet) toast('ARC FLASH! Put your helmet down (H)', 'bad', 'flash', 2000);
+  $('#flash').style.opacity = state.arc && !state.helmet && !isO() ? (0.55 + Math.random()*0.3).toFixed(2) : 0;
+  if (state.arc && !state.helmet) toast(isO() ? 'Put your shade 5 gas-welding goggles on (H). The puddle glare still hurts your eyes.' : 'ARC FLASH! Put your helmet down (H)', 'bad', 'flash', 2000);
 
   updateSparks(dt, lastSf);
   smoke.forEach(s => {
@@ -2026,8 +2182,8 @@ function setPhase(p){
 function toolVis(show){
   const sm = isS(), tg = isT();
   torch.visible = cable.visible = show;
-  torchInner.visible = isG(); stinger.visible = sm; tig.visible = tg;
-  wire.visible = show && isG(); rodMesh.visible = show && sm; filler.visible = show && tg;
+  torchInner.visible = isG(); stinger.visible = sm; tig.visible = isTig(); oxy.visible = isO();
+  wire.visible = show && isG(); rodMesh.visible = show && sm; filler.visible = show && tg && !isCorner();
   if (!show) fillerTip.visible = false;
   if (!show) rodTip.visible = false;
   lastCableKey = '';
@@ -2035,9 +2191,9 @@ function toolVis(show){
 function resetCoupon(){
   setThickness(); passes = []; newPass(); dirty.fill(1);
   freshBins(); pores.length = 0; flakes.forEach(f => f.life = 0); chipDone = 0; spatN = 0; spatMesh.count = 0; poreMesh.count = 0;
-  Object.assign(state, {pedal:0.85, H:0, feed:false, wasFeed:false, contam:false, contams:0, grind:0, cracks:0, dabs:[],
+  Object.assign(state, {pedal:isO() ? 1 : 0.85, H:0, feed:false, wasFeed:false, contam:false, contams:0, grind:0, cracks:0, dabs:[],
     pass:1, chipNext:false, aimU:0,
-    vel:0, workAngle:waIdeal(), travelAngle: isS() ? -10 : isT() ? 12 : 10, ctwd:0.5, arcLen:0.125, rodLen:ROD_LEN, sticks:0, rodChanges:0, stuck:0, speed:0, arc:false, trigger:false, burnback:0,
+    vel:0, workAngle:waIdeal(), travelAngle: isS() ? -10 : isO() ? 45 : isT() ? 12 : 10, pops:0, ctwd:0.5, arcLen:0.125, rodLen:ROD_LEN, sticks:0, rodChanges:0, stuck:0, speed:0, arc:false, trigger:false, burnback:0,
     firstArc:false, starts:0, burnbacks:0, spatter:0, noHelmetTime:0, doneTimer:0, drift:{w:0,t:0}, st:freshStats()});
   kb.on = false; state.seg = 0;
   if (isPipe()){ state.x = state.prevX = seg().a; mouse.px = mouse.x; mouse.py = mouse.y; applyRoll(); }
@@ -2062,13 +2218,16 @@ function startWeld(){
   buildGauges();
   rodMesh.material.color.setHex(spec().coat);
   slag.visible = sm;
-  if (sm) arcGlow.material.color.setRGB(1.0, 0.72, 0.45); else if (tg) arcGlow.material.color.setRGB(0.7, 0.72, 1.25); else arcGlow.material.color.setRGB(0.55, 0.75, 1.0);
-  arcLight.color.setHex(sm ? 0xffd2a0 : tg ? 0xd9d4ff : 0xcfe6ff);
+  if (isO()) arcGlow.material.color.setRGB(1.3, 0.6, 0.2); else if (sm) arcGlow.material.color.setRGB(1.0, 0.72, 0.45); else if (tg) arcGlow.material.color.setRGB(0.7, 0.72, 1.25); else arcGlow.material.color.setRGB(0.55, 0.75, 1.0);
+  arcLight.color.setHex(isO() ? 0xff9a4a : sm ? 0xffd2a0 : tg ? 0xd9d4ff : 0xcfe6ff);
   $('#kMouse').textContent = isG() ? 'mouse → travel & CTWD' : 'mouse → travel & arc length';
   $('#tigNow').classList.toggle('hidden', !tg); $('#kT').classList.toggle('hidden', !tg);
+  $('#kT').innerHTML = isO() ? (isCorner() ? 'no filler on this joint' : '<kbd>F</kbd> dab filler') : '<kbd>F</kbd> dab filler <kbd>Q</kbd><kbd>E</kbd>/wheel pedal <kbd>G</kbd> regrind';
+  $('#pedLbl').textContent = isO() ? 'Torch' : 'Pedal'; $('#tungLbl').textContent = isO() ? 'Flame' : 'Tungsten';
   $('#rodNow').classList.toggle('hidden', !sm); $('#kR').classList.toggle('hidden', !sm);
-  $('#gaugePanel .ptitle').textContent = (isPipe() ? `${posLabel()} ${PIPES[state.pipe].name} · ` : `${state.pos} ${fr32(T)} ${jt} · `) + (sm ? `SMAW ${state.rod}` : tg ? 'GTAW' : 'GMAW');
-  $('#hudSet').textContent = sm ? `⅛″ ${state.rod} · ${state.amps} A · DCEP` : tg ? `${state.tigMax} A max · ${state.argon} CFH Ar · DCEN` : `${state.wfs} ipm · ${state.volts.toFixed(1)} V · ${state.gas} CFH · ~${Math.round(ampsFor(state.wfs,0.5))} A`;
+  $('#gaugePanel .ptitle').textContent = isO() ? `${OJ[state.ojk].name} · 14 ga · OAW` : (isPipe() ? `${posLabel()} ${PIPES[state.pipe].name} · ` : `${state.pos} ${fr32(T)} ${jt} · `) + (sm ? `SMAW ${state.rod}` : tg ? 'GTAW' : 'GMAW');
+  $('#hudSet').textContent = isO() ? `#${state.tip} tip · ${{carb:'carburizing', neutral:'neutral', oxid:'oxidizing'}[state.flame]} flame · ${isCorner() ? 'no filler' : '1/16″ RG45 rod'} · ${state.hand === 'R' ? 'right' : 'left'}-handed`
+    : tg ? `${state.tigMax} A max · ${state.argon} CFH Ar · DCEN · ${state.hand === 'R' ? 'right' : 'left'}-handed` : sm ? `⅛″ ${state.rod} · ${state.amps} A · DCEP` : tg ? `${state.tigMax} A max · ${state.argon} CFH Ar · DCEN` : `${state.wfs} ipm · ${state.volts.toFixed(1)} V · ${state.gas} CFH · ~${Math.round(ampsFor(state.wfs,0.5))} A`;
   drawDisplay();
   setPhase('weld');
   setPreset(1);
@@ -2090,6 +2249,7 @@ function finishWeld(){
 }
 function passAdvice(i){
   const n = fillPasses(), p = state.pass;
+  if (isO()) return {butt:'melt both edges into one puddle, dab the front edge, melt through', corner:'melt both edges together, no rod', tee:'favor the flange, dab into the root', lap:'heat the bottom sheet, dab the top edge'}[state.oj];
   if (isGr()){
     if (p === 1) return isPipe() ? 'root: keep a small keyhole and melt through the land' : 'root: center it and fuse into the backing';
     let hmin = 9; for (let j=0;j<M;j++) if (Math.abs(uAt(j)) <= G_TOPH) hmin = Math.min(hmin, SURF[i*M+j]);
@@ -2102,38 +2262,67 @@ function passAdvice(i){
   return p === 1 ? 'root: aim into the corner' : p === 2 ? 'aim toward the flange (C), overlap half the root' : p === 3 ? 'aim toward the web (Z), tie in under the toe' : 'cap/extra: split the face, overlap ½ bead';
 }
 const xsecCv = document.getElementById('xsec'), xsecG = xsecCv.getContext('2d'), _xh = new Float32Array(M);
+const BEADCOL = ['#c98a4b','#9b6a36','#ddb071','#b27a3f','#e7c08a','#8c5f2f','#cf9a58','#a5733a'];
+// paint each pass as its own bead, stacked in the order they were run, numbered 1, 2, 3 …
+function paintStack(g, hist, loc, PX, PY, opts = {}){
+  let prev = FLOOR;
+  hist.forEach((arr, k) => {
+    let j = 0, best = null;
+    while (j < M){
+      if (!(arr[j] > prev[j] + 0.003)){ j++; continue; }
+      let a = j; while (j < M && arr[j] > prev[j] + 0.003) j++; const b = j - 1;
+      g.beginPath(); let area = 0, cz = 0, cy = 0;
+      for (let q=Math.max(0,a-1); q<=Math.min(M-1,b+1); q++){ const [z,y] = loc(uAt(q), Math.max(arr[q], prev[q])); q === Math.max(0,a-1) ? g.moveTo(PX(z),PY(y)) : g.lineTo(PX(z),PY(y)); }
+      for (let q=Math.min(M-1,b+1); q>=Math.max(0,a-1); q--){ const [z,y] = loc(uAt(q), prev[q]); g.lineTo(PX(z),PY(y)); }
+      for (let q=a; q<=b; q++){ const d = arr[q] - prev[q], [z,y] = loc(uAt(q), prev[q] + d/2); area += d; cz += z*d; cy += y*d; }
+      g.closePath(); g.fillStyle = opts.mono || BEADCOL[k % BEADCOL.length]; g.fill();
+      g.strokeStyle = 'rgba(25,15,6,.85)'; g.lineWidth = opts.lw || 1.5; g.stroke();
+      if (!best || area > best.area) best = {area, z:cz/area, y:cy/area};
+    }
+    if (best && opts.numbers !== false && best.area*DU > 0.0012){
+      g.font = `700 ${opts.font || 20}px Barlow, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(15,10,5,.85)'; g.fillText(String(k+1), PX(best.z), PY(best.y));
+    }
+    prev = arr;
+  });
+  g.textBaseline = 'alphabetic';
+}
+const _xp = new Float32Array(M);
 function drawXsec(i){
   const g = xsecG, w = xsecCv.width, h = xsecCv.height;
   g.clearRect(0,0,w,h);
-  const gr = isGr();
-  const ext = gr ? {z0:-(G_TOPH+0.4), z1:G_TOPH+0.4, y0:-0.3, y1:T+0.3} : {z0:ROOT_Z-0.55, z1:ROOT_Z+0.75, y0:ROOT_Y-0.12, y1:ROOT_Y+0.7};
-  const sc = Math.min((w-8)/(ext.z1-ext.z0), (h-8)/(ext.y1-ext.y0));
-  const PX = z => 4 + (z - ext.z0)*sc, PY = y => h - 4 - (y - ext.y0)*sc;
-  const path = (pts) => { g.beginPath(); pts.forEach((q,k) => k ? g.lineTo(PX(q[0]),PY(q[1])) : g.moveTo(PX(q[0]),PY(q[1]))); };
-  // plates
+  const gr = isGr(), ua = aimArc();
   const LP = (u, hh) => { const q = toLocal(u, hh); return [q.z, q.y]; };
-  const fl = []; for (let j=0;j<M;j++) fl.push(LP(uAt(j), FLOOR[j]));
-  g.fillStyle = '#59606a';
-  if (gr){ path(fl.concat([[ext.z1, ext.y0], [ext.z0, ext.y0]])); }
-  else path(fl.concat([LP(-U_MAX, -0.8), LP(U_MAX, -0.8)]));
-  g.closePath(); g.fill();
-  // replay passes for this bin
+  // frame: the joint plus wherever the torch is aimed
+  const span = Math.max(isO() ? 0.24 : gr ? G_TOPH + 0.3 : 0.62, Math.abs(ua) + (isO() ? 0.15 : 0.32)), dh = isO() ? 0.22 : 0.5;
+  let z0 = 9, z1 = -9, y0 = 9, y1 = -9;
+  [[-span, 0], [span, 0], [-span, dh], [span, dh], [0, 0], [0, dh*1.1]].forEach(([u, dh]) => { const [z, y] = LP(u, floorF(u) + dh); z0 = Math.min(z0, z); z1 = Math.max(z1, z); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+  y0 -= isO() ? 0.06 : gr ? Math.max(0.2, T*0.6) : 0.15; y1 += 0.05;
+  const sc = Math.min((w-16)/(z1-z0), (h-16)/(y1-y0));
+  const ox = (w - (z1-z0)*sc)/2, oy = (h - (y1-y0)*sc)/2;
+  const PX = z => ox + (z - z0)*sc, PY = y => h - oy - (y - y0)*sc;
+  g.beginPath();
+  for (let j=0;j<M;j++){ const [z,y] = LP(uAt(j), FLOOR[j]); j ? g.lineTo(PX(z),PY(y)) : g.moveTo(PX(z),PY(y)); }
+  if (gr){ g.lineTo(w+20, h+20); g.lineTo(-20, h+20); }
+  else { const a2 = LP(-U_MAX, -1.6), b2 = LP(U_MAX, -1.6); g.lineTo(PX(b2[0]), PY(b2[1])); g.lineTo(PX(a2[0]), PY(a2[1])); }
+  g.closePath(); g.fillStyle = '#59606a'; g.fill(); g.strokeStyle = '#7a828c'; g.lineWidth = 1.5; g.stroke();
+  // finished passes + the pass you are running now, stacked in order
   const hist = []; replayInto(_xh, 0, i, passes.length, hist);
-  const surfPts = arr => { const pts = []; for (let j=0;j<M;j++){ if (arr[j] > FLOOR[j] + 0.004){ const q = toLocal(uAt(j), arr[j]); pts.push([q.z, q.y]); } } return pts; };
-  const fin = surfPts(_xh);
-  if (fin.length > 1){
-    const back = []; for (let j=M-1;j>=0;j--){ if (_xh[j] > FLOOR[j] + 0.004){ const q = toLocal(uAt(j), FLOOR[j]); back.push([q.z, q.y]); } }
-    path(fin.concat(back)); g.closePath(); g.fillStyle = '#a8763e'; g.fill();
-    g.strokeStyle = 'rgba(20,12,6,.8)'; g.lineWidth = 1.5;
-    hist.slice(0, -1).forEach(arr => { const pts = surfPts(arr); if (pts.length > 1){ path(pts); g.stroke(); } });
-    g.strokeStyle = '#ffd08a'; g.lineWidth = 2; path(fin); g.stroke();
-  }
-  // aim marker and expected bead width
-  const u = clamp(state.aimU, -U_MAX*0.8, U_MAX*0.8), hs = surfH(i, u);
-  const half = state.lastW/2, a = LP(u - half, surfH(i, u - half) + 0.06), b = LP(u + half, surfH(i, u + half) + 0.06), c = LP(u, hs), tq = LP(u, hs + 0.28);
-  g.strokeStyle = '#7cc4ff'; g.lineWidth = 2; g.setLineDash([4,3]); g.beginPath(); g.moveTo(PX(a[0]), PY(a[1])); g.lineTo(PX(b[0]), PY(b[1])); g.stroke(); g.setLineDash([]);
-  g.fillStyle = '#7cc4ff'; g.beginPath(); g.arc(PX(c[0]), PY(c[1]), 4.5, 0, Math.PI*2); g.fill();
-  g.beginPath(); g.moveTo(PX(c[0]), PY(c[1])); g.lineTo(PX(tq[0]), PY(tq[1])); g.stroke();
+  paintStack(g, hist, LP, PX, PY, {font:22});
+  // where this pass's bead will land at the current aim
+  for (let j=0;j<M;j++) _xp[j] = _xh[j];
+  fillBead(_xp, 0, passArea(), ua, state.lastW || 0.3, 0.25, null);
+  g.setLineDash([6,4]); g.strokeStyle = '#7cc4ff'; g.lineWidth = 2.5; g.beginPath(); let on = false;
+  for (let j=0;j<M;j++){ if (_xp[j] > _xh[j] + 0.003){ const [z,y] = LP(uAt(j), _xp[j]); on ? g.lineTo(PX(z),PY(y)) : g.moveTo(PX(z),PY(y)); on = true; } }
+  g.stroke(); g.setLineDash([]);
+  // torch direction
+  const hs = surfH(i, ua), c = LP(ua, hs), t = torchAxis(), L2 = isO() ? 0.18 : 0.42;
+  g.strokeStyle = '#7cc4ff'; g.fillStyle = '#7cc4ff'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(PX(c[0]), PY(c[1])); g.lineTo(PX(c[0] + t.z*L2), PY(c[1] + t.y*L2)); g.stroke();
+  g.beginPath(); g.arc(PX(c[0]), PY(c[1]), 6, 0, Math.PI*2); g.fill();
+  const offJ = Math.abs(ua) > (gr ? G_TOPH + 0.05 : 0.45);
+  const done = passes.filter((P, k) => k < passes.length - 1 && P.A[i] > 0.002).length;
+  $('#xsecLeg').innerHTML = `Beads here: <b>${done}</b> done + pass <b>${state.pass}</b> running · <span style="color:#7cc4ff">dashed = where this bead lands</span>` + (offJ ? ' · <b style="color:var(--red)">aimed off the joint</b>' : '');
 }
 function nextPass(){
   if (state.arc || state.phase !== 'weld') return;
@@ -2224,12 +2413,12 @@ function ranges(flags){
 function evaluate(){
   derive();
   const i0 = isPipe() ? 0 : Math.round(0.25/DX), i1 = N - i0, n = i1 - i0, gr = isGr(), Lnom = gr ? 0 : state.fsize, U = underrunU(Lnom);
-  const F = {missing:[], under:[], undermin:[], over:[], profile:[], por:[], uc:[], cold:[], lof:[], inc:[], crack:[], rootf:[], burn:[], notch:[], rootx:[]};
+  const F = {missing:[], under:[], undermin:[], over:[], profile:[], por:[], uc:[], cold:[], lof:[], inc:[], crack:[], rootf:[], burn:[], notch:[], rootx:[], off:[]};
   const cnt = {}; Object.keys(F).forEach(k => cnt[k] = 0);
   let legSum = 0, legN = 0, penSum = 0, maxRe = -9, minUf = 9, sizeMin = 9, ucMax = 0, ucMidN = 0, ucDeepN = 0;
   let cvxWorst = -9, cvxAt = 0, cvxLim = 1/16, meltMax = 0, concMax = 0;
   for (let i=0;i<N;i++){
-    const missing = gr ? D.A[i] < 0.012 : D.size[i] < 0.06;
+    const missing = gr ? D.A[i] < (isO() ? A_FULL*0.6 : 0.012) : D.size[i] < (isO() ? 0.03 : 0.06);
     const ucD = D.jA[i] >= 0 ? D.uc[i]*0.075 : 0;     // undercut depth estimate (in)
     const lim = maxConvex(D.W[i]);
     const fl = {missing,
@@ -2238,7 +2427,8 @@ function evaluate(){
       over: !missing && gr && D.rein[i] > maxRein() + 0.002,
       profile: !missing && (gr ? D.C[i] > 0.6 : D.cvx[i] > lim + 0.004),
       por: !missing && D.por[i] > 0.35, uc: !missing && ucD > 1/32 + 0.002, cold: !missing && D.cold[i] > 0.4, lof: !missing && D.lof[i] > 0.4,
-      inc: !missing && D.inc[i] > 0.35, crack: !!bins[i].crack, rootf: !missing && gr && D.rp[i] < 0.03, burn: !missing && D.burn[i] > 0.35, notch: !missing && D.notch[i] > 0.25,
+      inc: !missing && D.inc[i] > 0.35, crack: !!bins[i].crack, rootf: !missing && gr && D.rp[i] < (isO() ? T*0.75 : 0.03), burn: !missing && D.burn[i] > 0.35, notch: !missing && D.notch[i] > 0.25,
+      off: !!D.off[i],
       rootx: !missing && isPipe() && (D.rprot[i] > 1/8 + 0.002 || -D.rprot[i] > 1/16 + 0.002)};
     for (const k in F) F[k].push(fl[k]);
     if (i < i0 || i >= i1) continue;
@@ -2261,9 +2451,11 @@ function evaluate(){
   // ---- D1.1 Table 8.1 checklist ----
   const chk = [];
   const ck = (name, ok, meas, limit) => chk.push({name, ok, meas, limit});
+  const offN = cnt.off || 0;
   ck('(1) Cracks', crackN === 0, crackN ? `${crackN} crater crack${crackN>1?'s':''}` : 'none', 'none, any size');
   const fusBits = [cnt.cold ? `overlap ${len(cnt.cold)}` : '', cnt.burn ? `melt-through ${len(cnt.burn)}` : '', gr && cnt.rootf ? `${isPipe() ? 'incomplete penetration' : 'root'} ${len(cnt.rootf)}` : ''].filter(Boolean);
   ck('(2) Weld/base-metal fusion', fusBits.length === 0, fusBits.join(' · ') || 'complete', 'complete; no overlap');
+  ck('Weld placement (metal off the joint)', offN <= 0.03*n, offN ? `beside the joint on ${len(offN)}` : 'all in the joint', 'weld metal in the joint only');
   ck('(3) Crater cross section', cnt.missing === 0, cnt.missing ? `${len(cnt.missing)} not filled` : 'filled', 'full size');
   if (gr){
     ck('(4) Profile: reinforcement', maxRe <= maxRein() + 0.002, maxRe > -9 ? `max ${maxRe >= 0 ? '+' : ''}${maxRe.toFixed(3)}″` : '—', `≤ ${fr32(maxRein())}`);
@@ -2308,7 +2500,8 @@ let lastEval = null;
 function showInspection(R){
   lastEval = R;
   const gr = R.gr;
-  $('#inspSub').textContent = isPipe() ? `${posLabel()} · ${PIPES[state.pipe].name} (${fr32(T)} wall) · open-root V-groove (37.5° bevel, 1/16″ land, 1/8″ gap) · ${R.passesN} pass${R.passesN === 1 ? '' : 'es'}. Full circumference inspected (welder-qualification visual criteria).`
+  $('#inspSub').textContent = isO() ? `${OJ[state.ojk].name} · 14 ga (0.075″) mild steel · oxy-acetylene, #${state.tip} tip, ${{carb:'carburizing', neutral:'neutral', oxid:'oxidizing'}[state.flame]} flame${isCorner() ? ', no filler' : ', 1/16″ RG45 rod'} · first and last ¼″ excluded. Sheet-metal visual criteria, adapted from D1.1/D1.3 style limits.`
+    : isPipe() ? `${posLabel()} · ${PIPES[state.pipe].name} (${fr32(T)} wall) · open-root V-groove (37.5° bevel, 1/16″ land, 1/8″ gap) · ${R.passesN} pass${R.passesN === 1 ? '' : 'es'}. Full circumference inspected (welder-qualification visual criteria).`
     : (gr ? `${state.pos} · ${fr32(T)} V-groove on backing (22.5° bevels, ¼″ root opening)` : `${state.pos} · ${fr32(state.fsize)} fillet on ${fr32(T)} plate`) + ` · ${R.passesN} pass${R.passesN === 1 ? '' : 'es'}. First and last ¼″ excluded.`;
   $('#critNote').textContent = isPipe() ? 'Welder-qualification visual criteria for pipe (open root, no backing), measured from the simulated weld profile. Classroom approximation: an inspector with gauges has the final word.'
     : 'Statically loaded nontubular criteria, measured from the simulated weld profile. Classroom approximation: an inspector with gauges has the final word.';
@@ -2349,6 +2542,7 @@ function showInspection(R){
     add('under', 'Undersized (within underrun)', 'Allowed on up to 10% of the weld length.');
     add('profile', 'Excess convexity', 'Face sits too far above the toe-to-toe line for its width.');
   }
+  add('off', 'Weld metal off the joint', 'A bead landed on the plate beside the joint instead of in it. Weld metal outside the joint is a defect (and wasted).');
   add('notch', 'Trapped valley between beads', 'A bead tied in at its edge over a deep valley. Split the layer and aim each bead into the valley.');
   add('uc', 'Undercut', gr ? 'Groove melted into the plate at the cap toe.' : 'Groove melted into the plate at the toe.');
   add('cold', 'Overlap / cold lap', 'Metal rolled onto the plate without fusing.');
@@ -2382,6 +2576,7 @@ function showInspection(R){
 
   // tips
   const tips = [];
+  if ((R.cnt.off || 0) > R.n*0.03) tips.push('Some weld metal landed off the joint. Watch where the torch is pointing: tipping it toward a wall moves the arc onto that wall. Keep the work angle near the target and the bead aim (Z/C) on the joint.');
   const vErr = state.volts - idealV(state.wfs);
   const t = targets(), sm = isS(), tg = isT(), gm = isG(), E = spec(), aE = state.amps - recoAmps(), c = R.cnt;
   if (R.safety) tips.push('Helmet down before every arc. Arc flash burns your eyes in seconds, and you can\'t feel it until hours later.');
@@ -2471,16 +2666,22 @@ function drawMacro(){
   bendObj(cutPlane);
   const cv = $('#macro'), g = cv.getContext('2d'), w = cv.width, h = cv.height;
   g.fillStyle = '#0f1216'; g.fillRect(0,0,w,h);
-  const ext = gr ? {z0:-(G_TOPH+0.5), z1:G_TOPH+0.5, y0:-0.45, y1:T+0.34}
+  const ext = isO() ? (gr ? {z0:-0.32, z1:0.32, y0:isCorner() ? -0.2 : -0.12, y1:T+0.14} : {z0:-0.2, z1:0.3, y0:-0.03, y1:T + 0.3})
+    : gr ? {z0:-(G_TOPH+0.5), z1:G_TOPH+0.5, y0:-0.45, y1:T+0.34}
                  : {z0:-T/2-0.3, z1:ROOT_Z + Math.max(0.55, D.Lb[i] + 0.35), y0:-0.06, y1:ROOT_Y + Math.max(0.55, D.Lw[i] + 0.3)};
   const Sc = Math.min((w-40)/(ext.z1-ext.z0), (h-40)/(ext.y1-ext.y0));
   const PX = z => 20 + (z - ext.z0)*Sc, PY = y => h - 20 - (y - ext.y0)*Sc;
   const poly = (pts, fill, stroke) => { g.beginPath(); pts.forEach(([z,y],k) => k ? g.lineTo(PX(z),PY(y)) : g.moveTo(PX(z),PY(y))); g.closePath(); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); } };
   const steel = () => { const gr2 = g.createLinearGradient(0, 0, 0, h); gr2.addColorStop(0,'#9a9ea3'); gr2.addColorStop(1,'#83878c'); return gr2; };
-  if (gr){
+  if (isCorner()){
+    const a = -ext.z0; poly([[-a, T-a], [-CW, T-CW], [0, T-2*CW], [CW, T-CW], [a, T-a], [a - T*S2, T - a - T*S2], [0, T - T*Math.SQRT2], [-a + T*S2, T - a - T*S2]], steel(), '#555a60');
+  } else if (isLap()){
+    poly([[-1,0],[ext.z1,0],[ext.z1,T],[-1,T]], steel(), '#555a60');
+    poly([[ext.z0,T],[0,T],[0,2*T],[ext.z0,2*T]], steel(), '#555a60');
+  } else if (gr){
     poly([[ext.z0,0],[-G_GAP/2,0],[-G_GAP/2,LAND],[-G_TOPH,T],[ext.z0,T]], steel(), '#555a60');
     poly([[G_GAP/2,0],[ext.z1,0],[ext.z1,T],[G_TOPH,T],[G_GAP/2,LAND]], steel(), '#555a60');
-    if (!isPipe()) poly([[-0.5,-0.375],[0.5,-0.375],[0.5,0],[-0.5,0]], steel(), '#555a60');
+    if (!isPipe() && !isO()) poly([[-0.5,-0.375],[0.5,-0.375],[0.5,0],[-0.5,0]], steel(), '#555a60');
   } else {
     poly([[ext.z0,0],[ext.z1,0],[ext.z1,T],[ext.z0,T]], steel(), '#555a60');
     poly([[-T/2,T],[T/2,T],[T/2,ext.y1],[-T/2,ext.y1]], steel(), '#555a60');
@@ -2509,9 +2710,8 @@ function drawMacro(){
   poly(fusion(0.04), 'rgba(118,104,86,.75)');
   const wg = g.createLinearGradient(0, PY(ext.y1), 0, PY(ext.y0)); wg.addColorStop(0,'#5c5146'); wg.addColorStop(1,'#3f372f');
   poly(fusion(0), wg);
-  // pass boundaries (each bead in the stack)
-  g.strokeStyle = 'rgba(15,12,9,.6)'; g.lineWidth = 2;
-  hist.slice(0, -1).forEach(arr => { g.beginPath(); let on = false; for (let j=0;j<M;j++){ if (arr[j] > FLOOR[j] + 0.004){ const [z,y] = loc(uAt(j), arr[j]); on ? g.lineTo(PX(z),PY(y)) : g.moveTo(PX(z),PY(y)); on = true; } } g.stroke(); });
+  // each bead in the stack, in the order it was run
+  paintStack(g, hist, loc, PX, PY, {font:24, lw:2});
   g.strokeStyle = '#000'; g.lineWidth = 3;
   if (lof){ const side = D.b[i] >= 0 ? jB : jA; const mid = Math.round((jA + jB)/2); g.beginPath(); const p1 = loc(uAt(side), FLOOR[side]), p2 = loc(uAt(Math.round((side*2 + mid)/3)), FLOOR[Math.round((side*2+mid)/3)]); g.moveTo(PX(p1[0]),PY(p1[1])); g.lineTo(PX(p2[0]),PY(p2[1])); g.stroke(); }
   if (rootf){ const p1 = loc(-G_GAP/2, 0.003), p2 = loc(G_GAP/2, 0.003); g.beginPath(); g.moveTo(PX(p1[0]),PY(p1[1])); g.lineTo(PX(p2[0]),PY(p2[1])); g.stroke(); }
@@ -2559,24 +2759,36 @@ function syncSetup(){
   document.querySelectorAll('#posSeg button').forEach(b => b.classList.toggle('on', b.dataset.pos === state.pos));
   const t = targets();
   document.querySelectorAll('.spdT').forEach(e => e.textContent = `${t.sg[0]}–${t.sg[1]} ipm`);
-  document.querySelectorAll('.dirT').forEach(e => e.textContent = posN() === 3 ? 'bottom → top' : 'left → right');
+  document.querySelectorAll('.dirT').forEach(e => e.textContent = posN() === 3 ? 'bottom → top' : handDir() < 0 ? 'right → left' : 'left → right');
   document.querySelectorAll('#thkSeg button').forEach(b => b.classList.toggle('on', +b.dataset.t === state.thick));
   document.querySelectorAll('#fsSeg button').forEach(b => b.classList.toggle('on', +b.dataset.f === state.fsize));
   $('#fsWrap').classList.toggle('hidden', isGr());
   $('#pipeWrap').classList.toggle('hidden', !isPipe()); $('#thkWrap').classList.toggle('hidden', isPipe());
   document.querySelectorAll('#pipeSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === state.pipe));
   const np = fillPasses();
-  const d11 = isPipe() ? `${PIPES[state.pipe].name}, ${fr32(T)} wall: open root, plan about <b>${np} passes</b> (${np > 2 ? 'root, fill, cap' : 'root, then cap'}). D1.1 welder-qualification visual: reinforcement ≤ 1/8″, undercut ≤ 1/32″, root melt-through ≤ 1/8″, concavity ≤ 1/16″.`
+  const d11 = isO() ? `14 ga (0.075″) mild steel. ${OJ_INFO[state.oj]} Reinforcement ≤ 1/16″, ${state.oj === 'butt' ? 'full penetration, ' : ''}no burn-through, holes or porosity.`
+    : isPipe() ? `${PIPES[state.pipe].name}, ${fr32(T)} wall: open root, plan about <b>${np} passes</b> (${np > 2 ? 'root, fill, cap' : 'root, then cap'}). D1.1 welder-qualification visual: reinforcement ≤ 1/8″, undercut ≤ 1/32″, root melt-through ≤ 1/8″, concavity ≤ 1/16″.`
     : isGr() ? `${fr32(state.thick)} plates · plan about <b>${np} passes</b>. D1.1: split any layer wider than ${fr32(splitW())}; reinforcement ≤ ${fr32(maxRein())}.`
     : `D1.1 minimum fillet on ${fr32(state.thick)} plate: <b>${fr32(minFillet(state.thick))}</b>. Max prequalified single-pass fillet for ${isS() ? 'SMAW' : isT() ? 'GTAW (not prequalified; using 5/16″)' : 'GMAW'} in ${state.pos}: <b>${fr32(singleMax())}</b> → <b>${np} pass${np > 1 ? 'es' : ''}</b>.${state.fsize < minFillet(state.thick) ? ' <span style="color:var(--yellow)">This size is under the D1.1 minimum for this plate.</span>' : ''}`;
-  $('#posInfo').innerHTML = `<b>${posLabel()}</b>: ${POS_INFO[state.pos]}<br>${d11}<br>Target travel per pass: <b>${t.sg[0]}–${t.sg[1]} ipm</b>. Picking a position, plate or size loads starting settings.`;
+  $('#posInfo').innerHTML = isO() ? `<b>${posLabel()}</b><br>${d11}<br>Target travel: <b>${t.sg[0]}–${t.sg[1]} ipm</b>. Flame points ahead of the puddle at 35–55°.` : `<b>${posLabel()}</b>: ${POS_INFO[state.pos]}<br>${d11}<br>Target travel per pass: <b>${t.sg[0]}–${t.sg[1]} ipm</b>. Picking a position, plate or size loads starting settings.`;
   $('#gmawReco').textContent = `${recoWfs()} ipm · ${r1(idealV(recoWfs())).toFixed(1)} V · 30 CFH`;
   $('#tigReco').textContent = `${recoTig()} A max (pedal ≈85% → ${Math.round(tigIdeal())} A) · 20 CFH`;
   document.querySelectorAll('#procSeg button').forEach(b => b.classList.toggle('on', b.dataset.p === state.process));
   document.querySelectorAll('#rodSeg button').forEach(b => b.classList.toggle('on', b.dataset.r === state.rod));
-  const tg = isT();
-  $('#gmawCtl').classList.toggle('hidden', !isG()); $('#smawCtl').classList.toggle('hidden', !sm); $('#gtawCtl').classList.toggle('hidden', !tg);
-  $('#howG').classList.toggle('hidden', !isG()); $('#howS').classList.toggle('hidden', !sm); $('#howT').classList.toggle('hidden', !tg);
+  const tg = isT(), oa = isO();
+  $('#gmawCtl').classList.toggle('hidden', !isG()); $('#smawCtl').classList.toggle('hidden', !sm); $('#gtawCtl').classList.toggle('hidden', !isTig()); $('#oawCtl').classList.toggle('hidden', !oa);
+  $('#howG').classList.toggle('hidden', !isG()); $('#howS').classList.toggle('hidden', !sm); $('#howT').classList.toggle('hidden', !isTig()); $('#howO').classList.toggle('hidden', !oa);
+  $('#handWrap').classList.toggle('hidden', !tg);
+  document.querySelectorAll('#handSeg button').forEach(b => b.classList.toggle('on', b.dataset.h === state.hand));
+  $('#ojSeg').classList.toggle('hidden', !oa); $('#posSeg').classList.toggle('hidden', oa);
+  if (oa){ $('#thkWrap').classList.add('hidden'); $('#fsWrap').classList.add('hidden'); $('#pipeWrap').classList.add('hidden'); }
+  document.querySelectorAll('#ojSeg button').forEach(b => b.classList.toggle('on', b.dataset.oj === state.ojk));
+  document.querySelectorAll('#tipSeg button').forEach(b => b.classList.toggle('on', +b.dataset.tip === state.tip));
+  document.querySelectorAll('#flameSeg button').forEach(b => b.classList.toggle('on', b.dataset.fl === state.flame));
+  $('#tipHint').textContent = state.tip === 1 ? 'Good size for 14 ga.' : state.tip === 0 ? 'Small tip: slow to puddle, cold laps and poor fusion.' : 'Big tip: the puddle runs away and burns holes in 14 ga.';
+  $('#tipHint').style.color = state.tip === 1 ? 'var(--green)' : 'var(--yellow)';
+  $('#flameHint').textContent = state.flame === 'neutral' ? 'Neutral: the right flame for steel.' : state.flame === 'oxid' ? 'Oxidizing burns the steel: sparks, porosity, a brittle bead.' : 'Carburizing adds carbon: a boiling, sluggish puddle and a hard bead.';
+  $('#flameHint').style.color = state.flame === 'neutral' ? 'var(--green)' : 'var(--yellow)';
   $('#tigMax').value = state.tigMax; $('#tigMaxV').textContent = state.tigMax + ' A';
   $('#argon').value = state.argon; $('#argonV').textContent = state.argon + ' CFH';
   const tp = Math.round(tigIdeal()/state.tigMax*100), lowMax = state.tigMax < tigIdeal()*1.03;
@@ -2600,7 +2812,7 @@ function syncSetup(){
   $('#voltHint').style.color = Math.abs(e) <= 1 ? 'var(--green)' : 'var(--yellow)';
   document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === state.mode));
   let bp=0, bt=0; try { bp = +localStorage.getItem('weldsim_best_'+state.process+'_'+state.pos+'_practice')||0; bt = +localStorage.getItem('weldsim_best_'+state.process+'_'+state.pos+'_test')||0; } catch(e){}
-  $('#bestLine').textContent = (bp||bt) ? `Your best (${state.pos} ${sm?'stick':tg?'TIG':'MIG'}): Practice ${bp} · Test ${bt}` : '';
+  $('#bestLine').textContent = (bp||bt) ? `Your best (${posLabel()} ${sm?'stick':oa?'oxy-fuel':tg?'TIG':'MIG'}): Practice ${bp} · Test ${bt}` : '';
   drawDisplay();
 }
 $('#wfs').addEventListener('input', e => { state.wfs = +e.target.value; syncSetup(); });
@@ -2616,7 +2828,17 @@ const defFillet = t => t <= 0.1875 ? 0.1875 : t <= 0.375 ? 0.25 : t <= 0.5 ? 0.3
 document.querySelectorAll('#thkSeg button').forEach(b => b.addEventListener('click', () => { state.thick = +b.dataset.t; state.fsize = defFillet(state.thick); applyReco(); applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
 document.querySelectorAll('#pipeSeg button').forEach(b => b.addEventListener('click', () => { state.pipe = b.dataset.p; applyReco(); applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
 document.querySelectorAll('#fsSeg button').forEach(b => b.addEventListener('click', () => { state.fsize = +b.dataset.f; applyReco(); syncSetup(); }));
-document.querySelectorAll('#procSeg button').forEach(b => b.addEventListener('click', () => { state.process = b.dataset.p; applyReco(); syncSetup(); }));
+function useOJ(k){ state.ojk = k; state.oj = OJ[k].oj; state.pos = OJ[k].pos; state.fsize = state.oj === 'lap' ? GA14 : 3/32; }
+document.querySelectorAll('#procSeg button').forEach(b => b.addEventListener('click', () => {
+  const wasO = isO(); state.process = b.dataset.p;
+  if (isO()) useOJ(state.ojk);
+  else if (wasO){ state.fsize = defFillet(state.thick); }
+  applyReco(); applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
+document.querySelectorAll('#ojSeg button').forEach(b => b.addEventListener('click', () => { useOJ(b.dataset.oj); applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
+document.querySelectorAll('#handSeg button').forEach(b => b.addEventListener('click', () => { state.hand = b.dataset.h; applyPosition(); updateBead(); setPreset(1); syncSetup(); }));
+document.querySelectorAll('#tipSeg button').forEach(b => b.addEventListener('click', () => { state.tip = +b.dataset.tip; syncSetup(); }));
+document.querySelectorAll('#flameSeg button').forEach(b => b.addEventListener('click', () => { state.flame = b.dataset.fl; syncSetup(); }));
+$('#recoBtnO').addEventListener('click', () => { state.tip = 1; state.flame = 'neutral'; syncSetup(); });
 document.querySelectorAll('#rodSeg button').forEach(b => b.addEventListener('click', () => { state.rod = b.dataset.r; state.amps = recoAmps(); syncSetup(); }));
 $('#recoBtn').addEventListener('click', () => { state.wfs = recoWfs(); state.volts = r1(idealV(state.wfs)); state.gas = 30; syncSetup(); });
 document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => { state.mode = b.dataset.m; syncSetup(); }));
@@ -2653,7 +2875,7 @@ placeTorch();
 requestAnimationFrame(frame);
 
 // test hook
-window.__weld = {camera, PIPE, chalkLabels, BASES, presetFor, passArea, depRate, get SEGS(){return SEGS}, seg, applyRoll, get passes(){return passes}, SURF, measure, mapB, spMid, targets, aimY, aimZ, nextPass, applyPosition, setPreset, keys, chipAt, goInspect, slag, state, get bins(){return bins}, D, mouse, finishWeld, startWeld, evaluate, mapMouse, toScreen, updateWeld, updateEffects, updateCamera, X0, X1, ROOT_Y, ROOT_Z};
+window.__weld = {OJ, useOJ, aimArc, camera, PIPE, chalkLabels, BASES, presetFor, passArea, depRate, get SEGS(){return SEGS}, seg, applyRoll, get passes(){return passes}, SURF, measure, mapB, spMid, targets, aimY, aimZ, nextPass, applyPosition, setPreset, keys, chipAt, goInspect, slag, state, get bins(){return bins}, D, mouse, finishWeld, startWeld, evaluate, mapMouse, toScreen, updateWeld, updateEffects, updateCamera, X0, X1, ROOT_Y, ROOT_Z};
 })();
 </script>
 </body>
