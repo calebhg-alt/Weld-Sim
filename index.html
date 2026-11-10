@@ -1978,7 +1978,19 @@ function updateWeld(dt){
     }
   }
   state.arc = want;
+  if (!state.arc && was) state.offX = state.x;
   if (state.arc && !was){
+    // Striking up on top of metal this pass already laid down, away from where you last stopped, is a new bead
+    // (a split-layer bead, or the next layer). Restarting at your crater keeps the same bead going.
+    if (!isPipe() && passes.length){
+      const pa = passes[passes.length - 1], bi = clamp(Math.round((state.x - X0)/DX - 0.5), 0, N-1);
+      let here = 0; for (let k=Math.max(0,bi-2); k<=Math.min(N-1,bi+2); k++) here = Math.max(here, pa.A[k]);
+      const far = state.offX == null || Math.abs(state.x - state.offX) > 0.75;
+      if (here > 0.5*passArea() && far){
+        newPass(); state.pass = passes.length; state.doneTimer = 0;
+        toast(`Bead ${state.pass} started` + (isS() && bins.some(b => b.slag && b.slagPass < state.pass) ? ': chip the slag first next time (N), or it gets trapped' : ''), isS() && bins.some(b => b.slag && b.slagPass < state.pass) ? 'warn' : 'good', 'bead' + state.pass);
+      }
+    }
     state.starts++; state.arcOnT = 0;
     if (!state.firstArc){ state.firstArc = true; state.paceX = state.x; }
     else if (Math.abs(state.paceX - state.x) > 0.6) state.paceX = state.x;
@@ -2194,7 +2206,7 @@ function resetCoupon(){
   Object.assign(state, {pedal:isO() ? 1 : 0.85, H:0, feed:false, wasFeed:false, contam:false, contams:0, grind:0, cracks:0, dabs:[],
     pass:1, chipNext:false, aimU:0,
     vel:0, workAngle:waIdeal(), travelAngle: isS() ? -10 : isO() ? 45 : isT() ? 12 : 10, pops:0, ctwd:0.5, arcLen:0.125, rodLen:ROD_LEN, sticks:0, rodChanges:0, stuck:0, speed:0, arc:false, trigger:false, burnback:0,
-    firstArc:false, starts:0, burnbacks:0, spatter:0, noHelmetTime:0, doneTimer:0, drift:{w:0,t:0}, st:freshStats()});
+    firstArc:false, offX:null, starts:0, burnbacks:0, spatter:0, noHelmetTime:0, doneTimer:0, drift:{w:0,t:0}, st:freshStats()});
   kb.on = false; state.seg = 0;
   if (isPipe()){ state.x = state.prevX = seg().a; mouse.px = mouse.x; mouse.py = mouse.y; applyRoll(); }
   else { const m = mapMouse(); state.x = state.prevX = m.x; }
@@ -2321,8 +2333,11 @@ function drawXsec(i){
   g.beginPath(); g.moveTo(PX(c[0]), PY(c[1])); g.lineTo(PX(c[0] + t.z*L2), PY(c[1] + t.y*L2)); g.stroke();
   g.beginPath(); g.arc(PX(c[0]), PY(c[1]), 6, 0, Math.PI*2); g.fill();
   const offJ = Math.abs(ua) > (gr ? G_TOPH + 0.05 : 0.45);
-  const done = passes.filter((P, k) => k < passes.length - 1 && P.A[i] > 0.002).length;
-  $('#xsecLeg').innerHTML = `Beads here: <b>${done}</b> done + pass <b>${state.pass}</b> running · <span style="color:#7cc4ff">dashed = where this bead lands</span>` + (offJ ? ' · <b style="color:var(--red)">aimed off the joint</b>' : '');
+  const pa = passes[passes.length - 1], far = state.offX == null || Math.abs(state.x - state.offX) > 0.75;
+  const nextNew = !state.arc && !isPipe() && pa && pa.A[i] > 0.5*passArea() && far;     // striking here starts a new bead
+  const done = passes.filter((P, k) => (nextNew || k < passes.length - 1) && P.A[i] > 0.002).length;
+  $('#xsecLeg').innerHTML = (nextNew ? `Beads here: <b>${done}</b> done · strike here to start <b>bead ${state.pass + 1}</b>`
+    : `Beads here: <b>${done}</b> done + bead <b>${state.pass}</b> ${state.arc ? 'running' : 'ready'}`) + ` · <span style="color:#7cc4ff">dashed = where it lands</span>` + (offJ ? ' · <b style="color:var(--red)">aimed off the joint</b>' : '');
 }
 function nextPass(){
   if (state.arc || state.phase !== 'weld') return;
@@ -2335,7 +2350,7 @@ function nextPass(){
   beginPass();
 }
 function beginPass(){
-  newPass(); state.pass = passes.length; state.firstArc = false; state.doneTimer = 0;
+  newPass(); state.pass = passes.length; state.firstArc = false; state.doneTimer = 0; state.offX = null;
   if (isPipe()){ state.seg = 0; state.x = state.prevX = seg().a; kb.on = false; applyRoll(); }
   setPreset(1);
   toast(`Pass ${state.pass}: back to the START mark`, 'good', 'pass');
